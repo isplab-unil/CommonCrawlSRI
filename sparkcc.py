@@ -59,7 +59,6 @@ class CCSparkJob(object):
 
         arg_parser.add_argument("input", help=self.input_descr)
         arg_parser.add_argument("output", help=self.output_descr)
-
         arg_parser.add_argument("--num_input_partitions", type=int,
                                 default=self.num_input_partitions,
                                 help="Number of input splits/partitions")
@@ -72,11 +71,9 @@ class CCSparkJob(object):
         arg_parser.add_argument("--output_compression", default="gzip",
                                 help="Output compression codec: None,"
                                 " gzip/zlib (default), snappy, lzo, etc.")
-
         arg_parser.add_argument("--local_temp_dir", default=None,
                                 help="Local temporary directory, used to"
                                 " buffer content from S3")
-
         arg_parser.add_argument("--log_level", default=self.log_level,
                                 help="Logging level")
 
