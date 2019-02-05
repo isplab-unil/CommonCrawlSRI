@@ -17,7 +17,7 @@ from bs4.dammit import EncodingDetector
 
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SQLContext, SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, LongType, ArrayType
+from pyspark.sql.types import StructType, StructField, StringType, LongType, ArrayType, BinaryType
 
 LOGGING_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
 
@@ -34,11 +34,14 @@ class SparkSRI(object):
 
     output_schema = StructType([
         StructField("uri", StringType(), True),
+        StructField("encoding", StringType(), True),
+        StructField("content", BinaryType(), True),
         StructField("tags", ArrayType(StructType([
             StructField("name", StringType(), True),
             StructField("target", StringType(), True),
             StructField("integrity", StringType(), True),
         ])), True),
+
     ])
 
     @staticmethod
@@ -205,12 +208,18 @@ class SparkSRI(object):
     def process_record(self, record):
         if 'response' == record.rec_type:
             html = record.content_stream().read()
+
             tags = []
+            encoding = None
+            content = None
             if b'integrity=' in html:
                 encoding = EncodingDetector.find_declared_encoding(html, is_html=True)
                 soup = BeautifulSoup(html, "lxml", from_encoding=encoding)
                 tags = [(tag.name, tag.get('src') or tag.get('href'), tag.get("integrity")) for tag in soup(["link", "script"]) if tag.get("integrity") is not None]
-            yield [record.rec_headers.get_header('WARC-Target-URI'), tags]
+                if len(tags) > 0:
+                    content = html
+
+            yield [record.rec_headers.get_header('WARC-Target-URI'), encoding, content, tags]
 
 
 if __name__ == "__main__":
