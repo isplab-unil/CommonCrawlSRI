@@ -12,26 +12,39 @@ import botocore
 from warcio.archiveiterator import ArchiveIterator
 from warcio.recordloader import ArchiveLoadFailed
 
+from bs4 import BeautifulSoup
+from bs4.dammit import EncodingDetector
+
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SQLContext, SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, LongType
+from pyspark.sql.types import StructType, StructField, StringType, LongType, ArrayType
 
 LOGGING_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
 
 
-class SRIJob(object):
+class SparkSRI(object):
     """
     A custom spark job to analyze SRI adoption.
     """
 
-    name = "SRIJob"
+    name = "SparkSRI"
 
     log_level = 'INFO'
     logging.basicConfig(level=log_level, format=LOGGING_FORMAT)
 
     output_schema = StructType([
-        StructField("rec_type", StringType(), True),
+        StructField("uri", StringType(), True),
+        StructField("tags", ArrayType(StructType([
+            StructField("name", StringType(), True),
+            StructField("target", StringType(), True),
+            StructField("integrity", StringType(), True),
+        ])), True),
     ])
+
+    @staticmethod
+    def is_response(record):
+        """Return true if the record is a response"""
+        return record.rec_type == 'response'
 
     @staticmethod
     def is_html(record):
@@ -148,6 +161,7 @@ class SRIJob(object):
             self.get_logger().info('Reading from S3 {}'.format(uri))
             s3match = s3pattern.match(uri)
             if s3match is None:
+
                 self.get_logger().error("Invalid S3 URI: " + uri)
                 return
             bucketname = s3match.group(1)
@@ -179,9 +193,8 @@ class SRIJob(object):
 
         try:
             for record in ArchiveIterator(stream):
-                if (record.rec_type == 'response'):
-                    for result in self.process_record(record):
-                        yield result
+                for result in self.process_record(record):
+                    yield result
                 self.records_processed.add(1)
         except ArchiveLoadFailed as exception:
             self.warc_input_failed.add(1)
@@ -190,12 +203,16 @@ class SRIJob(object):
             stream.close()
 
     def process_record(self, record):
-
-
-
-        yield [record.rec_headers.get_header('WARC-Target-URI')]
+        if 'response' == record.rec_type:
+            html = record.content_stream().read()
+            tags = []
+            if b'integrity=' in html:
+                encoding = EncodingDetector.find_declared_encoding(html, is_html=True)
+                soup = BeautifulSoup(html, "lxml", from_encoding=encoding)
+                tags = [(tag.name, tag.get('src') or tag.get('href'), tag.get("integrity")) for tag in soup(["link", "script"]) if tag.get("integrity") is not None]
+            yield [record.rec_headers.get_header('WARC-Target-URI'), tags]
 
 
 if __name__ == "__main__":
-    job = SRIJob()
+    job = SparkSRI()
     job.run()

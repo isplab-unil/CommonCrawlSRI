@@ -110,3 +110,4 @@ venv.bak/
 crawl-data/
 input/
 spark-warehouse/
+.DS_Store
