@@ -40,9 +40,17 @@ To develop locally, run `get-data.sh`, it will download the sample data. It also
 Submit a job with the following command:
 
 ```
-$SPARK_HOME/bin/spark-submit ./server_count.py \
-	--num_output_partitions 1 --log_level WARN \
-	./input/test_warc.txt servernames
+$SPARK_HOME/bin/spark-submit ./srijob.py \
+	--log_level WARN \
+	./input/test_warc.txt srijob
 ```
 
 This will count web server names sent in HTTP response headers for the sample WARC input and store the resulting counts in the SparkSQL table "servernames" in your ... (usually in `./spark-warehouse/servernames`).
+
+The output table can be accessed via SparkSQL, e.g.,
+
+```
+$SPARK_HOME/spark/bin/pyspark
+>>> df = sqlContext.read.parquet("spark-warehouse/srijob")
+>>> for row in df.sort(df.val.desc()).take(10): print(row)
+```
