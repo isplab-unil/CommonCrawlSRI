@@ -8,6 +8,8 @@ import boto3
 import botocore
 from bs4 import BeautifulSoup
 from bs4.dammit import EncodingDetector
+from warcio.bufferedreaders import ChunkedDataReader, BufferedReader
+
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SQLContext
 from pyspark.sql.types import StructType, StructField, StringType, ArrayType, BinaryType, BooleanType
@@ -244,8 +246,28 @@ class CommonCrawlSRI(object):
         [keywords.append(word) for (word, pattern) in self.re_contains_keywords if re.search(pattern, text)]
         return keywords
 
+    def content_stream(self, record, content):
+        if not record.http_headers:
+            return content
+
+        encoding = record.http_headers.get_header('content-encoding')
+
+        if encoding:
+            encoding = encoding.lower()
+
+            if encoding not in BufferedReader.get_supported_decompressors():
+                encoding = None
+
+        if record.http_headers.get_header('transfer-encoding') == 'chunked':
+            return ChunkedDataReader(content, decomp_type=encoding)
+        elif encoding:
+            return BufferedReader(content, decomp_type=encoding)
+        else:
+            return content
+
     def process_record(self, record):
         if 'response' == record.rec_type:
+
             # variables initialization
             uri = record.rec_headers.get_header('WARC-Target-URI')
             error = False
@@ -253,11 +275,13 @@ class CommonCrawlSRI(object):
             subresources = []
             checksums = []
             keywords = []
-            content = record.content_stream().read()
+            content = record.raw_stream.read()
 
             # prune the records
-            if re.search(self.re_contains_checksum, content) is not None or re.search(self.re_contains_sri, content) is not None:
+            if b"integrity=" in content: #re.search(self.re_contains_checksum, content) or re.search(self.re_contains_sri, content) is not None:
                 try:
+                    content = self.content_stream(record, content)
+
                     # detect encoding and parse content
                     encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
                     soup = BeautifulSoup(content, "lxml", from_encoding=encoding)
@@ -279,7 +303,8 @@ class CommonCrawlSRI(object):
                     error = True
 
             # store content only if needed
-            content = bytearray(content) if len(subresources) > 0 or len(checksums) > 0 or len(keywords) > 0 else None
+            content = bytearray(content) if error or len(subresources) > 0 or len(checksums) > 0 or len(
+                keywords) > 0 else None
 
             yield [uri, error, encoding, subresources, checksums, keywords, content]
 
