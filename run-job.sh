@@ -2,6 +2,6 @@
 
 rm -fr spark-warehouse/
 
-$SPARK_HOME/bin/spark-submit ./sparksri.py \
+$SPARK_HOME/bin/spark-submit ./commoncrawlsri.py \
         --log_level WARN \
-        ./input/test_warc.txt srijob
+        ./input/test_warc.txt commoncrawlsri

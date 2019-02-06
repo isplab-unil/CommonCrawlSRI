@@ -42,15 +42,26 @@ Submit a job with the following command:
 ```
 $SPARK_HOME/bin/spark-submit ./srijob.py \
 	--log_level WARN \
-	./input/test_warc.txt srijob
+	./input/test_warc.txt commoncrawlsri
 ```
 
 This will count web server names sent in HTTP response headers for the sample WARC input and store the resulting counts in the SparkSQL table "servernames" in your ... (usually in `./spark-warehouse/servernames`).
 
-The output table can be accessed via SparkSQL, e.g.,
+
+
+## Executing queries
+
+The output table can be accessed via the pyspark shell:
 
 ```
 $SPARK_HOME/spark/bin/pyspark
->>> df = sqlContext.read.parquet("spark-warehouse/srijob")
->>> for row in df.sort(df.val.desc()).take(10): print(row)
 ```
+
+```
+sqlContext.read.parquet("spark-warehouse/commoncrawlsri").registerTempTable("commoncrawlsri")
+sqlContext.sql("SELECT count(*) FROM commoncrawlsri WHERE exception = TRUE").show()
+sqlContext.sql("SELECT count(*) FROM commoncrawlsri WHERE exception = FALSE").show()
+sqlContext.sql("SELECT * FROM commoncrawlsri WHERE size(tags) > 0").show()
+
+```
+

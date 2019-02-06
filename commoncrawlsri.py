@@ -2,47 +2,57 @@ import argparse
 import logging
 import os
 import re
-
-from io import BytesIO
 from tempfile import TemporaryFile
 
 import boto3
 import botocore
-
+from bs4 import BeautifulSoup
+from bs4.dammit import EncodingDetector
+from pyspark import SparkContext, SparkConf
+from pyspark.sql import SQLContext
+from pyspark.sql.types import StructType, StructField, StringType, ArrayType, BinaryType, BooleanType
 from warcio.archiveiterator import ArchiveIterator
 from warcio.recordloader import ArchiveLoadFailed
 
-from bs4 import BeautifulSoup
-from bs4.dammit import EncodingDetector
-
-from pyspark import SparkContext, SparkConf
-from pyspark.sql import SQLContext, SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, LongType, ArrayType, BinaryType
-
 LOGGING_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
 
-
-class SparkSRI(object):
+class CommonCrawlSRI(object):
     """
-    A custom spark job to analyze SRI adoption.
+    A Spark job to analyze SRI adoption on CommonCrawl.
     """
 
-    name = "SparkSRI"
+    name = "CommonCrawlSRI"
 
     log_level = 'INFO'
     logging.basicConfig(level=log_level, format=LOGGING_FORMAT)
 
     output_schema = StructType([
-        StructField("uri", StringType(), True),
+        StructField("uri", StringType(), False),
+        StructField("error", BooleanType(), True),
         StructField("encoding", StringType(), True),
-        StructField("content", BinaryType(), True),
-        StructField("tags", ArrayType(StructType([
-            StructField("name", StringType(), True),
+        StructField("subresources", ArrayType(StructType([
+            StructField("tag", StringType(), True),
             StructField("target", StringType(), True),
-            StructField("integrity", StringType(), True),
+            StructField("checksum", StringType(), True),
         ])), True),
-
+        StructField("checksums", ArrayType(StringType()), True),
+        StructField("keywords", ArrayType(StringType()), True),
+        StructField("content", BinaryType(), True),
     ])
+
+    re_contains_sri = re.compile(b'(?:(integrity=)|(integrity =))')
+    re_contains_checksum = re.compile(b'(?:([a-f0-9]{32})|([A-F0-9]{32}))')
+    re_extract_checksums = re.compile('(?:((?<!\w)[a-f0-9]{32,128}(?!\w))|((?<!\w)[A-F0-9]{32,128}(?!\w)))')
+    re_contains_letter = re.compile('([a-f]|[A-F])')
+    re_contains_number = re.compile('([0-9])')
+    re_contains_keywords = {('md5 ', re.compile('md5', re.IGNORECASE)),
+                            ('sha ', re.compile('(?<!\w)sha(-| )?[0-9]', re.IGNORECASE)),
+                            ('hash ', re.compile('(?<!\w)hash', re.IGNORECASE)),
+                            ('checksum ', re.compile('checksum', re.IGNORECASE)),
+                            ('download ', re.compile('download', re.IGNORECASE)),
+                            ('torrent ', re.compile('torrent', re.IGNORECASE))}
+
+    checksum_sizes = [32, 40, 56, 64, 96, 128]  # md5, sha1, sha224, sha256, sha384, sha512
 
     @staticmethod
     def is_response(record):
@@ -164,7 +174,6 @@ class SparkSRI(object):
             self.get_logger().info('Reading from S3 {}'.format(uri))
             s3match = s3pattern.match(uri)
             if s3match is None:
-
                 self.get_logger().error("Invalid S3 URI: " + uri)
                 return
             bucketname = s3match.group(1)
@@ -193,7 +202,6 @@ class SparkSRI(object):
                 self.get_logger().error('Failed to open {}: {}'.format(uri, exception))
                 self.warc_input_failed.add(1)
                 return
-
         try:
             for record in ArchiveIterator(stream):
                 for result in self.process_record(record):
@@ -205,23 +213,76 @@ class SparkSRI(object):
         finally:
             stream.close()
 
+    def extract_subresources(self, soup):
+        tags = [(tag.name, tag.get('src') or tag.get('href'), tag.get("integrity")) for tag in soup(["link", "script"]) if tag.get("integrity") is not None]
+        return tags
+
+    def extract_text(self, soup):
+        body = soup(["body"])
+        text = "" if not body else body[0].getText()
+        return text
+
+    def filter_checksum(self, checksum):
+        if not len(checksum) in self.checksum_sizes:
+            return False
+        if re.search(self.re_contains_number, checksum) is None:
+            return False
+        if re.search(self.re_contains_letter, checksum) is None:
+            return False
+        return True
+
+    def extract_checksums(self, text):
+        groups = re.findall(self.re_extract_checksums, text)
+        checksums = set()
+        [[checksums.add(checksum.lower().replace('-', ''))
+                    for checksum in group if self.filter_checksum(checksum)]
+                    for group in groups]
+        return list(checksums)
+
+    def extract_keywords(self, text):
+        keywords = []
+        [keywords.append(word) for (word, pattern) in self.re_contains_keywords if re.search(pattern, text)]
+        return keywords
+
     def process_record(self, record):
         if 'response' == record.rec_type:
-            html = record.content_stream().read()
-
-            tags = []
+            # variables initialization
+            uri = record.rec_headers.get_header('WARC-Target-URI')
+            error = False
             encoding = None
-            content = None
-            if b'integrity=' in html:
-                encoding = EncodingDetector.find_declared_encoding(html, is_html=True)
-                soup = BeautifulSoup(html, "lxml", from_encoding=encoding)
-                tags = [(tag.name, tag.get('src') or tag.get('href'), tag.get("integrity")) for tag in soup(["link", "script"]) if tag.get("integrity") is not None]
-                if len(tags) > 0:
-                    content = html
+            subresources = []
+            checksums = []
+            keywords = []
+            content = record.content_stream().read()
 
-            yield [record.rec_headers.get_header('WARC-Target-URI'), encoding, content, tags]
+            # prune the records
+            if re.search(self.re_contains_checksum, content) is not None or re.search(self.re_contains_sri, content) is not None:
+                try:
+                    # detect encoding and parse content
+                    encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
+                    soup = BeautifulSoup(content, "lxml", from_encoding=encoding)
 
+                    # extract tags that contain an integrity attribute
+                    # soup.find_all(lambda tag: 'integrity' in tag.attrs)
+                    subresources = self.extract_subresources(soup)
+
+                    # extract text
+                    text = self.extract_text(soup)
+
+                    # extract checksums from text
+                    checksums = self.extract_checksums(text)
+
+                    # extract keywords from text
+                    keywords = self.extract_keywords(text)
+
+                except:
+                    error = True
+
+            # store content only if needed
+            content = bytearray(content) if len(subresources) > 0 or len(checksums) > 0 or len(keywords) > 0 else None
+
+            yield [uri, error, encoding, subresources, checksums, keywords, content]
 
 if __name__ == "__main__":
-    job = SparkSRI()
+    job = CommonCrawlSRI()
     job.run()
