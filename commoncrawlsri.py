@@ -275,13 +275,11 @@ class CommonCrawlSRI(object):
             subresources = []
             checksums = []
             keywords = []
-            content = record.raw_stream.read()
+            content = record.content_stream().read()
 
             # prune the records
-            if b"integrity=" in content: #re.search(self.re_contains_checksum, content) or re.search(self.re_contains_sri, content) is not None:
+            if re.search(self.re_contains_sri, content) or re.search(self.re_contains_checksum, content) is not None:
                 try:
-                    content = self.content_stream(record, content)
-
                     # detect encoding and parse content
                     encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
                     soup = BeautifulSoup(content, "lxml", from_encoding=encoding)
@@ -303,10 +301,9 @@ class CommonCrawlSRI(object):
                     error = True
 
             # store content only if needed
-            content = bytearray(content) if error or len(subresources) > 0 or len(checksums) > 0 or len(
-                keywords) > 0 else None
+            # content = bytearray(content) if len(subresources) > 0 else None
 
-            yield [uri, error, encoding, subresources, checksums, keywords, content]
+            yield [uri, error, encoding, subresources, checksums, keywords, None]
 
 if __name__ == "__main__":
     job = CommonCrawlSRI()
