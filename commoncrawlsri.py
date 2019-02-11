@@ -127,6 +127,7 @@ class CommonCrawlSRI(object):
         self.warc_input_processed = sc.accumulator(0)
         self.warc_input_failed = sc.accumulator(0)
 
+
     def log_aggregators(self, sc):
         self.log_aggregator(sc, self.warc_input_processed, 'WARC input files processed = {}')
         self.log_aggregator(sc, self.warc_input_failed, 'WARC input files failed = {}')
@@ -278,7 +279,7 @@ class CommonCrawlSRI(object):
             content = record.content_stream().read()
 
             # prune the records
-            if re.search(self.re_contains_sri, content) or re.search(self.re_contains_checksum, content) is not None:
+            if re.search(self.re_contains_sri, content) is not None or re.search(self.re_contains_checksum, content) is not None:
                 try:
                     # detect encoding and parse content
                     encoding = EncodingDetector.find_declared_encoding(content, is_html=True)

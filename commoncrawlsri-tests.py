@@ -39,7 +39,7 @@ class CommonCrawlSRITests(unittest.TestCase):
         self.assertEqual(tags[0][2], SRI1)
         self.assertEqual(tags[1][2], SRI2)
 
-    def test_checksums(self):
+    def test_extract_checksums(self):
         soup = BeautifulSoup(HTML, "lxml")
         text = CommonCrawlSRI().extract_text(soup)
         checksums = CommonCrawlSRI().extract_checksums(text)
