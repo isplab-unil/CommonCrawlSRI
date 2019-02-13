@@ -18,7 +18,8 @@ from warcio.recordloader import ArchiveLoadFailed
 
 LOGGING_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
 
-class CommonCrawlSRI(object):
+
+class CommonCrawlSRI():
     """
     A Spark job to analyze SRI adoption on CommonCrawl.
     """
@@ -127,7 +128,6 @@ class CommonCrawlSRI(object):
         self.warc_input_processed = sc.accumulator(0)
         self.warc_input_failed = sc.accumulator(0)
 
-
     def log_aggregators(self, sc):
         self.log_aggregator(sc, self.warc_input_processed, 'WARC input files processed = {}')
         self.log_aggregator(sc, self.warc_input_failed, 'WARC input files failed = {}')
@@ -217,7 +217,9 @@ class CommonCrawlSRI(object):
             stream.close()
 
     def extract_subresources(self, soup):
-        tags = [(tag.name, tag.get('src') or tag.get('href'), tag.get("integrity")) for tag in soup(["link", "script"]) if tag.get("integrity") is not None]
+        tags = [(tag.name, tag.get('src') or tag.get('href'), tag.get("integrity"))
+                for tag in soup(["link", "script"])
+                if tag.get("integrity") is not None]
         return tags
 
     def extract_text(self, soup):
@@ -232,39 +234,21 @@ class CommonCrawlSRI(object):
             return False
         if re.search(self.re_contains_letter, checksum) is None:
             return False
+        # check number of distinct digits
         return True
 
     def extract_checksums(self, text):
         groups = re.findall(self.re_extract_checksums, text)
         checksums = set()
-        [[checksums.add(checksum.lower().replace('-', ''))
-                    for checksum in group if self.filter_checksum(checksum)]
-                    for group in groups]
+        [[checksums.add(checksum.lower())
+          for checksum in group if self.filter_checksum(checksum)]
+         for group in groups]
         return list(checksums)
 
     def extract_keywords(self, text):
         keywords = []
         [keywords.append(word) for (word, pattern) in self.re_contains_keywords if re.search(pattern, text)]
         return keywords
-
-    def content_stream(self, record, content):
-        if not record.http_headers:
-            return content
-
-        encoding = record.http_headers.get_header('content-encoding')
-
-        if encoding:
-            encoding = encoding.lower()
-
-            if encoding not in BufferedReader.get_supported_decompressors():
-                encoding = None
-
-        if record.http_headers.get_header('transfer-encoding') == 'chunked':
-            return ChunkedDataReader(content, decomp_type=encoding)
-        elif encoding:
-            return BufferedReader(content, decomp_type=encoding)
-        else:
-            return content
 
     def process_record(self, record):
         if 'response' == record.rec_type:
@@ -279,7 +263,8 @@ class CommonCrawlSRI(object):
             content = record.content_stream().read()
 
             # prune the records
-            if re.search(self.re_contains_sri, content) is not None or re.search(self.re_contains_checksum, content) is not None:
+            if re.search(self.re_contains_sri, content) is not None or re.search(self.re_contains_checksum,
+                                                                                 content) is not None:
                 try:
                     # detect encoding and parse content
                     encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
@@ -302,9 +287,10 @@ class CommonCrawlSRI(object):
                     error = True
 
             # store content only if needed
-            # content = bytearray(content) if len(subresources) > 0 else None
+            content = bytearray(content) if len(subresources) > 0 or len(checksums) > 0 or error else None
 
-            yield [uri, error, encoding, subresources, checksums, keywords, None]
+            yield [uri, error, encoding, subresources, checksums, keywords, content]
+
 
 if __name__ == "__main__":
     job = CommonCrawlSRI()
