@@ -30,6 +30,7 @@ class CommonCrawlSRI():
     logging.basicConfig(level=log_level, format=LOGGING_FORMAT)
 
     output_schema = StructType([
+        StructField("warc", StringType(), False),
         StructField("uri", StringType(), False),
         StructField("error", BooleanType(), True),
         StructField("encoding", StringType(), True),
@@ -164,7 +165,7 @@ class CommonCrawlSRI():
             .option("compression", self.args.output_compression) \
             .saveAsTable(self.args.output)
 
-    def process_warc(self, uri):
+    def process_warc(self, warc):
         s3pattern = re.compile('^s3://([^/]+)/(.+)')
         base_dir = os.path.abspath(os.path.dirname(__file__))
 
@@ -173,11 +174,11 @@ class CommonCrawlSRI():
         s3client = boto3.client('s3', config=no_sign_request)
 
         self.warc_input_processed.add(1)
-        if uri.startswith('s3://'):
-            self.get_logger().info('Reading from S3 {}'.format(uri))
-            s3match = s3pattern.match(uri)
+        if warc.startswith('s3://'):
+            self.get_logger().info('Reading from S3 {}'.format(warc))
+            s3match = s3pattern.match(warc)
             if s3match is None:
-                self.get_logger().error("Invalid S3 URI: " + uri)
+                self.get_logger().error("Invalid S3 URI: " + warc)
                 return
             bucketname = s3match.group(1)
             path = s3match.group(2)
@@ -185,34 +186,34 @@ class CommonCrawlSRI():
             try:
                 s3client.download_fileobj(bucketname, path, warctemp)
             except botocore.client.ClientError as exception:
-                self.get_logger().error('Failed to download {}: {}'.format(uri, exception))
+                self.get_logger().error('Failed to download {}: {}'.format(warc, exception))
                 self.warc_input_failed.add(1)
                 warctemp.close()
                 return
             warctemp.seek(0)
             stream = warctemp
-        elif uri.startswith('hdfs://'):
-            self.get_logger().error("HDFS input not implemented: " + uri)
+        elif warc.startswith('hdfs://'):
+            self.get_logger().error("HDFS input not implemented: " + warc)
             return
         else:
-            self.get_logger().info('Reading local stream {}'.format(uri))
-            if uri.startswith('file:'):
-                uri = uri[5:]
-            uri = os.path.join(base_dir, uri)
+            self.get_logger().info('Reading local stream {}'.format(warc))
+            if warc.startswith('file:'):
+                warc = warc[5:]
+            warc = os.path.join(base_dir, warc)
             try:
-                stream = open(uri, 'rb')
+                stream = open(warc, 'rb')
             except IOError as exception:
-                self.get_logger().error('Failed to open {}: {}'.format(uri, exception))
+                self.get_logger().error('Failed to open {}: {}'.format(warc, exception))
                 self.warc_input_failed.add(1)
                 return
         try:
             for record in ArchiveIterator(stream):
-                for result in self.process_record(record):
+                for result in self.process_record(warc, record):
                     yield result
                 self.records_processed.add(1)
         except ArchiveLoadFailed as exception:
             self.warc_input_failed.add(1)
-            self.get_logger().error('Invalid WARC: {} - {}'.format(uri, exception))
+            self.get_logger().error('Invalid WARC: {} - {}'.format(warc, exception))
         finally:
             stream.close()
 
@@ -250,10 +251,11 @@ class CommonCrawlSRI():
         [keywords.append(word) for (word, pattern) in self.re_contains_keywords if re.search(pattern, text)]
         return keywords
 
-    def process_record(self, record):
+    def process_record(self, warc, record):
         if 'response' == record.rec_type:
 
             # variables initialization
+            warc = warc[warc.rfind('H'):]
             uri = record.rec_headers.get_header('WARC-Target-URI')
             error = False
             encoding = None
@@ -262,9 +264,11 @@ class CommonCrawlSRI():
             keywords = []
             content = record.content_stream().read()
 
+            subresources_contains = re.search(self.re_contains_sri, content) is not None
+            checksums_contains = re.search(self.re_contains_checksum, content) is not None
+
             # prune the records
-            if re.search(self.re_contains_sri, content) is not None or re.search(self.re_contains_checksum,
-                                                                                 content) is not None:
+            if subresources_contains or checksums_contains:
                 try:
                     # detect encoding and parse content
                     encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
@@ -289,7 +293,7 @@ class CommonCrawlSRI():
             # store content only if needed
             content = bytearray(content) if len(subresources) > 0 or len(checksums) > 0 or error else None
 
-            yield [uri, error, encoding, subresources, checksums, keywords, content]
+            yield [warc, uri, error, encoding, subresources, checksums, keywords, content]
 
 
 if __name__ == "__main__":
