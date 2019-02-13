@@ -264,11 +264,11 @@ class CommonCrawlSRI():
             keywords = []
             content = record.content_stream().read()
 
-            subresources_contains = re.search(self.re_contains_sri, content) is not None
-            checksums_contains = re.search(self.re_contains_checksum, content) is not None
+            subresources_contained = re.search(self.re_contains_sri, content) is not None
+            checksums_contained = re.search(self.re_contains_checksum, content) is not None
 
             # prune the records
-            if subresources_contains or checksums_contains:
+            if subresources_contained or checksums_contained:
                 try:
                     # detect encoding and parse content
                     encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
@@ -293,7 +293,7 @@ class CommonCrawlSRI():
             # store content only if needed
             content = bytearray(content) if len(subresources) > 0 or len(checksums) > 0 or error else None
 
-            yield [warc, uri, error, encoding, subresources, checksums, keywords, content]
+            yield [warc, uri, error, encoding, subresources_contained, subresources, checksums_contained, checksums, keywords, content]
 
 
 if __name__ == "__main__":
