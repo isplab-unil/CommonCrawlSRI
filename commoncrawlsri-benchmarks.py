@@ -12,15 +12,11 @@ def parse_arguments():
     """ Returns the parsed arguments from the command line """
     arg_parser = argparse.ArgumentParser(description="Benchmark arguments")
     arg_parser.add_argument("input", help="Path to file listing input paths")
-    arg_parser.add_argument("limit", help="The number of records to process")
+    arg_parser.add_argument("limit", type=int, help="The number of records to process")
     return arg_parser.parse_args()
 
 def process_warc(input, limit):
     """ Returns the number of records in a collection of archives"""
-
-    # add the results to the repository
-    repo = git.Repo(search_parent_directories=True)
-    repo.index.add(["."])
 
     start = time.time()
     wark_input_processed = 0
@@ -78,7 +74,8 @@ def process_warc(input, limit):
     print("checksums_counted:      %s" % checksums_counted)
     print("keywords_count:         %s" % keywords_count)
 
-
+    # add the git hash to the result
+    repo = git.Repo(search_parent_directories=True)
     hash = repo.head.object.hexsha
     benchmarkFile = "benchmark-results.csv"
     with open(benchmarkFile, "a+") as csv:
@@ -101,4 +98,4 @@ def process_warc(input, limit):
 
 if __name__ == '__main__':
     args = parse_arguments()
-    cProfile.run("process_warc(\"{0}\", {1})".format(args.input, args.limit), "process_warc_benchmark.pstat")
+    process_warc(args.input, args.limit)
