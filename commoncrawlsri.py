@@ -8,8 +8,6 @@ import boto3
 import botocore
 from bs4 import BeautifulSoup
 from bs4.dammit import EncodingDetector
-from warcio.bufferedreaders import ChunkedDataReader, BufferedReader
-
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SQLContext
 from pyspark.sql.types import StructType, StructField, StringType, ArrayType, BinaryType, BooleanType
@@ -24,7 +22,7 @@ class CommonCrawlSRI():
     A Spark job to analyze SRI adoption on CommonCrawl.
     """
 
-    name = "CommonCrawlSRI"
+    name = "CommoncrawlSRI"
 
     log_level = 'INFO'
     logging.basicConfig(level=log_level, format=LOGGING_FORMAT)
@@ -34,11 +32,13 @@ class CommonCrawlSRI():
         StructField("uri", StringType(), False),
         StructField("error", BooleanType(), True),
         StructField("encoding", StringType(), True),
+        StructField("subresources_contained", BooleanType(), True),
         StructField("subresources", ArrayType(StructType([
             StructField("tag", StringType(), True),
             StructField("target", StringType(), True),
             StructField("checksum", StringType(), True),
         ])), True),
+        StructField("checksums_contained", BooleanType(), True),
         StructField("checksums", ArrayType(StringType()), True),
         StructField("keywords", ArrayType(StringType()), True),
         StructField("content", BinaryType(), True),
@@ -255,7 +255,7 @@ class CommonCrawlSRI():
         if 'response' == record.rec_type:
 
             # variables initialization
-            warc = warc[warc.rfind('H'):]
+            warc = warc[warc.rfind('/') + 1:]
             uri = record.rec_headers.get_header('WARC-Target-URI')
             error = False
             encoding = None
@@ -264,18 +264,18 @@ class CommonCrawlSRI():
             keywords = []
             content = record.content_stream().read()
 
-            subresources_contained = re.search(self.re_contains_sri, content) is not None
-            checksums_contained = re.search(self.re_contains_checksum, content) is not None
+            subresources_in = b"integrity=" in content
+            subresources_contained = False # re.search(self.re_contains_sri, content) is not None
+            checksums_contained = False #re.search(self.re_contains_checksum, content) is not None
 
             # prune the records
-            if subresources_contained or checksums_contained:
+            if subresources_in:
                 try:
                     # detect encoding and parse content
                     encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
                     soup = BeautifulSoup(content, "lxml", from_encoding=encoding)
 
                     # extract tags that contain an integrity attribute
-                    # soup.find_all(lambda tag: 'integrity' in tag.attrs)
                     subresources = self.extract_subresources(soup)
 
                     # extract text
