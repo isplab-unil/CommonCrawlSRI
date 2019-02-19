@@ -80,7 +80,7 @@ aws emr create-cluster \
   --bootstrap-actions Path=s3://commoncrawl-sri/bootstrap/install_python_modules.sh \
   --steps '[{"Args":["spark-submit","--deploy-mode","cluster","s3://commoncrawl-sri/code/pythonjob.py","s3a://commoncrawl-sri/input/data.csv","s3a://commoncrawl-sri/output/"],"Type":"CUSTOM_JAR","ActionOnFailure":"TERMINATE_CLUSTER","Jar":"command-runner.jar","Properties":"","Name":"Spark application"}]' \
   --instance-groups '[{"InstanceCount":1,"InstanceGroupType":"MASTER","InstanceType":"m1.medium","Name":"Master Instance Group"}]' \
-  --configurations '[{"Classification":"spark","Properties":{},"Configurations":[]}]' \
+  --configurations file://./emr-configurations.json \
   --auto-terminate \
   --service-role EMR_DefaultRole \
   --enable-debugging \
@@ -88,5 +88,7 @@ aws emr create-cluster \
   --scale-down-behavior TERMINATE_AT_TASK_COMPLETION \
   --region us-east-1
 ```
+
+"Configurations": [{"Classification": "export", "Properties": {"PYSPARK_PYTHON": "/usr/bin/python3"}}]
 
 https://forums.aws.amazon.com/message.jspa?messageID=882723

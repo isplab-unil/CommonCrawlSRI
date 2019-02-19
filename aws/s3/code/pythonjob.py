@@ -1,12 +1,10 @@
-from __future__ import print_function
+import time
+
 from pyspark import SparkContext
-import sys
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: testjob  ", file=sys.stderr)
-        exit(-1)
     sc = SparkContext(appName="MyTestJob")
-    dataTextAll = sc.textFile(sys.argv[1])
+    dataTextAll = sc.textFile("s3a://commoncrawl-sri/input/data.csv")
     dataRDD = dataTextAll.map(lambda x: x.split(",")).map(lambda y: (str(y[0]), float(y[1]))).reduceByKey(lambda a, b: a + b)
-    dataRDD.saveAsTextFile(sys.argv[2])
+    dataRDD.saveAsTextFile("s3a://commoncrawl-sri/output/%i" % int(time.time()))
     sc.stop()
