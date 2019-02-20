@@ -1,0 +1,16 @@
+[
+  {
+    "Args": [
+      "--deploy-mode",
+      "cluster",
+      "--master",
+      "yarn",
+      "--conf",
+      "spark.yarn.submit.waitAppCompletion=true",
+      "s3://commoncrawl-sri/code/pythonjob.py"
+    ],
+    "Type": "spark",
+    "ActionOnFailure": "CONTINUE",
+    "Name": "Spark application"
+  }
+]
