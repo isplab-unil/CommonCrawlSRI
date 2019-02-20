@@ -1,3 +1,4 @@
+pyspark
 botocore
 boto3
 ujson

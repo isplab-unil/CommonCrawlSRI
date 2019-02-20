@@ -3,11 +3,11 @@
 aws s3 sync ./s3/ s3://commoncrawl-sri && \
 aws emr create-cluster \
   --applications Name=Hadoop Name=Spark \
-  --ec2-attributes '{"InstanceProfile":"EMR_EC2_DefaultRole","SubnetId":"subnet-06ef506668d98740f"}' \
-  --release-label emr-5.17.0 --log-uri 's3n://emr-logs-329700769039-us-east-1/elasticmapreduce/' \
+  --ec2-attributes '{"InstanceProfile":"EMR_EC2_DefaultRole","SubnetId":"subnet-06ef506668d98740f","KeyName":"commoncrawl-sri"}' \
+  --release-label emr-5.21.0 --log-uri 's3n://commoncrawl-sri/logs/' \
   --bootstrap-actions Path=s3://commoncrawl-sri/bootstrap/install_python_modules.sh \
   --steps file://./emr/steps.json \
-  --instance-groups '[{"InstanceCount":1,"InstanceGroupType":"MASTER","InstanceType":"m1.medium","Name":"Master Instance Group"}]' \
+  --instance-groups '[{"InstanceCount":1,"InstanceGroupType":"MASTER","InstanceType":"m1.medium","Name":"Master Instance Group"},{"InstanceCount":2,"InstanceGroupType":"CORE","InstanceType":"m1.medium","Name":"Core Instance Group"}]' \
   --configurations file://./emr/configurations.json \
   --auto-terminate \
   --service-role EMR_DefaultRole \

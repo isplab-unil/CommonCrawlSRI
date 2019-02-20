@@ -1,17 +1,16 @@
 [
   {
     "Args": [
-      "spark-submit",
       "--deploy-mode",
       "cluster",
-      "s3://commoncrawl-sri/code/pythonjob.py",
-      "s3a://commoncrawl-sri/input/data.csv",
-      "s3a://commoncrawl-sri/output/"
+      "--master",
+      "yarn",
+      "--conf",
+      "spark.yarn.submit.waitAppCompletion=true",
+      "s3://commoncrawl-sri/code/pythonjob.py"
     ],
-    "Type": "CUSTOM_JAR",
-    "ActionOnFailure": "TERMINATE_CLUSTER",
-    "Jar": "command-runner.jar",
-    "Properties": "",
+    "Type": "spark",
+    "ActionOnFailure": "CONTINUE",
     "Name": "Spark application"
   }
 ]
