@@ -9,7 +9,7 @@ aws emr create-cluster \
   --service-role EMR_DefaultRole \
   --enable-debugging \
   --name 'commoncrawl-sri' \
-  --instance-groups '[{"InstanceCount":2,"InstanceGroupType":"CORE","InstanceType":"m3.xlarge","Name":"Core Instance Group"},{"InstanceCount":1,"InstanceGroupType":"MASTER","InstanceType":"m3.xlarge","Name":"Master Instance Group"}]' \
-  --configurations '[{"Classification":"spark","Properties":{},"Configurations":[]}]' \
+  --instance-groups '[{"InstanceCount":1,"InstanceGroupType":"CORE","InstanceType":"m3.xlarge","Name":"Core Instance Group"},{"InstanceCount":1,"InstanceGroupType":"MASTER","InstanceType":"m3.xlarge","Name":"Master Instance Group"}]' \
+  --configurations file://./emr/configurations.json \
   --scale-down-behavior TERMINATE_AT_TASK_COMPLETION \
   --region us-east-1

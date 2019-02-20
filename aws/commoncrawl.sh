@@ -2,5 +2,5 @@
 
 aws s3 sync ./s3/ s3://commoncrawl-sri && \
 aws emr add-steps \
-  --cluster-id j-1XRUS8FEX6DHM \
-  --steps file://./emr/steps.json
+  --cluster-id j-1W91ZGYDB3P4Q \
+  --steps file://./emr/commoncrawl.json

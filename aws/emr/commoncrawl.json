@@ -7,7 +7,9 @@
       "yarn",
       "--conf",
       "spark.yarn.submit.waitAppCompletion=true",
-      "s3://commoncrawl-sri/code/pythonjob.py"
+      "s3://commoncrawl-sri/code/commoncrawlsri.py",
+      "s3://commoncrawl-sri/input/10_warc.txt",
+      "commoncrawlsri"
     ],
     "Type": "spark",
     "ActionOnFailure": "CONTINUE",

@@ -163,6 +163,8 @@ class CommonCrawlSRI():
             .write \
             .format(self.args.output_format) \
             .option("compression", self.args.output_compression) \
+            .option("path", "s3://commoncrawl-sri/output-sri/") \
+            .mode("overwrite") \
             .saveAsTable(self.args.output)
 
     def process_warc(self, warc):
