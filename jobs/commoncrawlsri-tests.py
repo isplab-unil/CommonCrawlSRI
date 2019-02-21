@@ -1,9 +1,16 @@
-import os
+# -*- coding: utf-8 -*-
+__author__ = "Bertil Chapuis, Kévin Huguenin"
+__copyright__ = "Copyright 2019, The Information Security and Privacy Lab at the University of Lausanne (https://www.unil.ch/isplab/)"
+__credits__ = ["Bertil Chapuis", "Kévin Huguenin"]
+
+__version__ = "1"
+__license__ = "MIT"
+__maintainer__ = "Bertil Chapuis"
+__email__ = "bertil.chapuis@unil.ch"
+
 import unittest
 
 from bs4 import BeautifulSoup
-from warcio import ArchiveIterator
-
 from commoncrawlsri import CommonCrawlSRI
 
 SRI1 = "sha256-95e8a199e17e995fc7cb9cb2c13ec6075f5126bd986a25ec19fb1d101559d7e1"

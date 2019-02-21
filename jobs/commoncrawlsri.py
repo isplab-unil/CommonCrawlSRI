@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+__author__ = "Bertil Chapuis, Kévin Huguenin"
+__copyright__ = "Copyright 2019, The Information Security and Privacy Lab at the University of Lausanne (https://www.unil.ch/isplab/)"
+__credits__ = ["Bertil Chapuis", "Kévin Huguenin"]
+
+__version__ = "1"
+__license__ = "MIT"
+__maintainer__ = "Bertil Chapuis"
+__email__ = "bertil.chapuis@unil.ch"
+
 import argparse
 import logging
 import os
@@ -15,7 +25,6 @@ from warcio.archiveiterator import ArchiveIterator
 from warcio.recordloader import ArchiveLoadFailed
 
 LOGGING_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
-
 
 class CommonCrawlSRI():
     """
@@ -150,7 +159,7 @@ class CommonCrawlSRI():
         sqlc.createDataFrame(output, schema=self.schema) \
             .write \
             .format("parquet") \
-            .option("compression", "snappy") \
+            .option("compression", "gzip") \
             .option("path", self.args.output) \
             .mode("overwrite") \
             .saveAsTable(self.args.table)

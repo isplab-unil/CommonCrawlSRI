@@ -107,7 +107,7 @@ venv.bak/
 .idea/
 
 # project
-crawl-data/
 input/
-output/
+crawl-data/
+spark-warehouse/
 .DS_Store

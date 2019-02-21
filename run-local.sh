@@ -1,7 +1,7 @@
 #!/bin/bash
 
-rm -fr ./../output/
-
-$SPARK_HOME/bin/spark-submit ./jobs/commoncrawlsri.py \
+rm -fr ./../output/ && \
+spark-submit ./jobs/commoncrawlsri.py \
         --log_level WARN \
-        ./input/test_warc.txt ./output/ commoncrawlsri
+        ./input/test_warc.txt \
+        ./spark-warehouse/ commoncrawlsri

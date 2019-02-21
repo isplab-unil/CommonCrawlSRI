@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+aws s3 sync ./bootstrap/ s3://commoncrawl-sri/bootstrap/ && \
 aws emr create-cluster \
   --applications Name=Ganglia Name=Spark Name=Zeppelin \
   --ec2-attributes file://./config/ec2-attributes.json \
