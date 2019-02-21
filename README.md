@@ -78,7 +78,7 @@ aws emr create-cluster \
   --ec2-attributes '{"InstanceProfile":"EMR_EC2_DefaultRole","SubnetId":"subnet-06ef506668d98740f"}' \
   --release-label emr-5.17.0 --log-uri 's3n://aws-logs-329700769039-us-east-1/elasticmapreduce/' \
   --bootstrap-actions Path=s3://commoncrawl-sri/bootstrap/bootstrap.sh \
-  --steps '[{"Args":["spark-submit","--deploy-mode","cluster","s3://commoncrawl-sri/code/pythonjob.py","s3a://commoncrawl-sri/input/data.csv","s3a://commoncrawl-sri/output/"],"Type":"CUSTOM_JAR","ActionOnFailure":"TERMINATE_CLUSTER","Jar":"command-runner.jar","Properties":"","Name":"Spark application"}]' \
+  --steps '[{"Args":["spark-submit","--deploy-mode","cluster","s3://commoncrawl-sri/jobs/pythonjob.py","s3a://commoncrawl-sri/input/data.csv","s3a://commoncrawl-sri/output/"],"Type":"CUSTOM_JAR","ActionOnFailure":"TERMINATE_CLUSTER","Jar":"command-runner.jar","Properties":"","Name":"Spark application"}]' \
   --instance-groups '[{"InstanceCount":1,"InstanceGroupType":"MASTER","InstanceType":"m1.medium","Name":"Master Instance Group"}]' \
   --configurations file://./emr-configurations.json \
   --auto-terminate \

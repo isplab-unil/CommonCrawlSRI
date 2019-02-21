@@ -18,9 +18,9 @@ for data_type in warc wat wet; do
 
 	echo "Downloading sample $data_type file..."
 
-	mkdir -p crawl-data/$CRAWL/
-	listing=crawl-data/$CRAWL/$data_type.paths.gz
-	cd crawl-data/$CRAWL/
+	mkdir -p data/$CRAWL/
+	listing=data/$CRAWL/$data_type.paths.gz
+	cd data/$CRAWL/
 	wget --timestamping $BASE_URL/$listing
 	cd -
 
