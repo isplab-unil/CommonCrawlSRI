@@ -4,7 +4,7 @@ name=commoncrawl-bucket
 region=us-east-1
 logs=s3n://${name}/logs/
 bootstrap=Path=s3://${name}/bootstrap/bootstrap.sh
-job=`cat config/commoncrawlsri.json | sed s/commoncrawl-sri/${name}/g | tr '\n' ' ' | sed 's/ //g'`
+job="'"`cat config/commoncrawlsri.json | sed s/commoncrawl-sri/${name}/g | tr '\n' ' ' | sed 's/ //g'`"'"
 echo "Create s3 bucket..."
 aws s3api create-bucket --bucket $name --region $region --output text
 echo "-> Done!"
