@@ -109,5 +109,5 @@ venv.bak/
 # project
 crawl-data/
 input/
-spark-warehouse/
+output/
 .DS_Store

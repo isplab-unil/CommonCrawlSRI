@@ -1,0 +1,5 @@
+{
+  "InstanceProfile": "EMR_EC2_DefaultRole",
+  "SubnetId": "subnet-06ef506668d98740f",
+  "KeyName": "commoncrawl-sri"
+}
