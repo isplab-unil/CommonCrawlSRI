@@ -1,0 +1,7 @@
+pyspark
+botocore
+boto3
+ujson
+warcio
+beautifulsoup4
+lxml

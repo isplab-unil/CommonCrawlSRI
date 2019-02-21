@@ -5,7 +5,7 @@ aws emr create-cluster \
   --ec2-attributes '{"InstanceProfile":"EMR_EC2_DefaultRole","SubnetId":"subnet-06ef506668d98740f","KeyName":"commoncrawl-sri"}' \
   --release-label emr-5.21.0 \
   --log-uri 's3n://commoncrawl-sri/logs/' \
-  --bootstrap-actions Path=s3://commoncrawl-sri/bootstrap/install_python_modules.sh \
+  --bootstrap-actions Path=s3://commoncrawl-sri/bootstrap/bootstrap.sh \
   --service-role EMR_DefaultRole \
   --enable-debugging \
   --name 'commoncrawl-sri' \

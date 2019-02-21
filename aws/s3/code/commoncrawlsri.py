@@ -27,7 +27,7 @@ class CommonCrawlSRI():
     log_level = 'INFO'
     logging.basicConfig(level=log_level, format=LOGGING_FORMAT)
 
-    output_schema = StructType([
+    schema = StructType([
         StructField("warc", StringType(), False),
         StructField("uri", StringType(), False),
         StructField("error", BooleanType(), True),
@@ -78,35 +78,23 @@ class CommonCrawlSRI():
 
     def parse_arguments(self):
         """ Returns the parsed arguments from the command line """
-
         description = self.name
         if self.__doc__ is not None:
             description += " - "
             description += self.__doc__
         arg_parser = argparse.ArgumentParser(description=description)
-
         arg_parser.add_argument("input",
-                                help="Path to file listing input paths")
+                                help="Input path")
         arg_parser.add_argument("output",
-                                help="Name of output table (saved in spark.sql.warehouse.dir)")
-        arg_parser.add_argument("--output_format", default="parquet",
-                                help="Output format: parquet (default),"
-                                     " orc, json, csv")
-        arg_parser.add_argument("--output_compression", default="gzip",
-                                help="Output compression codec: None,"
-                                     " gzip/zlib (default), snappy, lzo, etc.")
+                                help="Output path")
+        arg_parser.add_argument("table",
+                                help="Output table")
         arg_parser.add_argument("--local_temp_dir", default=None,
                                 help="Local temporary directory, used to"
                                      " buffer content from S3")
         arg_parser.add_argument("--log_level", default=self.log_level,
                                 help="Logging level")
-
         args = arg_parser.parse_args()
-
-        if "orc" == args.output_format and "gzip" == args.output_compression:
-            # gzip for Parquet, zlib for ORC
-            args.output_compression = "zlib"
-
         self.init_logging(args.log_level)
         return args
 
@@ -159,13 +147,13 @@ class CommonCrawlSRI():
         output = sc.textFile(self.args.input) \
             .flatMap(self.process_warc)
 
-        sqlc.createDataFrame(output, schema=self.output_schema) \
+        sqlc.createDataFrame(output, schema=self.schema) \
             .write \
-            .format(self.args.output_format) \
-            .option("compression", self.args.output_compression) \
-            .option("path", "s3://commoncrawl-sri/output-sri/") \
+            .format("parquet") \
+            .option("compression", "snappy") \
+            .option("path", self.args.output) \
             .mode("overwrite") \
-            .saveAsTable(self.args.output)
+            .saveAsTable(self.args.table)
 
     def process_warc(self, warc):
         s3pattern = re.compile('^s3://([^/]+)/(.+)')
