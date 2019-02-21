@@ -9,6 +9,7 @@
       "spark.yarn.submit.waitAppCompletion=true",
       "s3://commoncrawl-sri/jobs/commoncrawlsri.py",
       "s3://commoncrawl-sri/input/10_warc.txt",
+      "s3://commoncrawl-sri/output/",
       "commoncrawlsri"
     ],
     "Type": "spark",

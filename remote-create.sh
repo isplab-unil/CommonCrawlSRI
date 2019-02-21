@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-aws s3 sync ./bootstrap/ s3://commoncrawl-sri/bootstrap/ && \
+aws s3 sync ./bootstrap/ s3://commoncrawl-sri/bootstrap/
 aws emr create-cluster \
   --applications Name=Ganglia Name=Spark Name=Zeppelin \
   --ec2-attributes file://./config/ec2-attributes.json \
@@ -13,4 +13,5 @@ aws emr create-cluster \
   --instance-groups file://./config/instance-groups.json \
   --configurations file://./config/configurations.json \
   --scale-down-behavior TERMINATE_AT_TASK_COMPLETION \
-  --region us-east-1
+  --region us-east-1 \
+  --output text
