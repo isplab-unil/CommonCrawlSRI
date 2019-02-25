@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-__author__ = "Bertil Chapuis, Kévin Huguenin"
+__author__ = "Bertil Chapuis, Kévin Huguenin, Romain Artru"
 __copyright__ = "Copyright 2019, The Information Security and Privacy Lab at the University of Lausanne (https://www.unil.ch/isplab/)"
-__credits__ = ["Bertil Chapuis", "Kévin Huguenin"]
+__credits__ = ["Bertil Chapuis", "Kévin Huguenin", "Romain Artru"]
 
 __version__ = "1"
 __license__ = "MIT"
@@ -41,31 +41,14 @@ class CommonCrawlSRI():
         StructField("uri", StringType(), False),
         StructField("error", BooleanType(), True),
         StructField("encoding", StringType(), True),
-        StructField("subresources_contained", BooleanType(), True),
+        StructField("content", BinaryType(), True),
+        StructField("has_subresources", BooleanType(), True),
         StructField("subresources", ArrayType(StructType([
             StructField("tag", StringType(), True),
             StructField("target", StringType(), True),
-            StructField("checksum", StringType(), True),
+            StructField("integrity", StringType(), True)
         ])), True),
-        StructField("checksums_contained", BooleanType(), True),
-        StructField("checksums", ArrayType(StringType()), True),
-        StructField("keywords", ArrayType(StringType()), True),
-        StructField("content", BinaryType(), True),
     ])
-
-    re_contains_sri = re.compile(b'(?:(integrity=)|(integrity =))')
-    re_contains_checksum = re.compile(b'(?:([a-f0-9]{32})|([A-F0-9]{32}))')
-    re_extract_checksums = re.compile('(?:((?<!\w)[a-f0-9]{32,128}(?!\w))|((?<!\w)[A-F0-9]{32,128}(?!\w)))')
-    re_contains_letter = re.compile('([a-f]|[A-F])')
-    re_contains_number = re.compile('([0-9])')
-    re_contains_keywords = {('md5 ', re.compile('md5', re.IGNORECASE)),
-                            ('sha ', re.compile('(?<!\w)sha(-| )?[0-9]', re.IGNORECASE)),
-                            ('hash ', re.compile('(?<!\w)hash', re.IGNORECASE)),
-                            ('checksum ', re.compile('checksum', re.IGNORECASE)),
-                            ('download ', re.compile('download', re.IGNORECASE)),
-                            ('torrent ', re.compile('torrent', re.IGNORECASE))}
-
-    checksum_sizes = [32, 40, 56, 64, 96, 128]  # md5, sha1, sha224, sha256, sha384, sha512
 
     @staticmethod
     def is_response(record):
@@ -258,17 +241,12 @@ class CommonCrawlSRI():
             uri = record.rec_headers.get_header('WARC-Target-URI')
             error = False
             encoding = None
-            subresources = []
-            checksums = []
-            keywords = []
             content = record.content_stream().read()
-
-            subresources_in = b"integrity=" in content
-            subresources_contained = False # re.search(self.re_contains_sri, content) is not None
-            checksums_contained = False #re.search(self.re_contains_checksum, content) is not None
+            has_subresources = b"integrity=" in content
+            subresources = []
 
             # prune the records
-            if subresources_in:
+            if has_subresources:
                 try:
                     # detect encoding and parse content
                     encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
@@ -277,22 +255,13 @@ class CommonCrawlSRI():
                     # extract tags that contain an integrity attribute
                     subresources = self.extract_subresources(soup)
 
-                    # extract text
-                    text = self.extract_text(soup)
-
-                    # extract checksums from text
-                    checksums = self.extract_checksums(text)
-
-                    # extract keywords from text
-                    keywords = self.extract_keywords(text)
-
                 except:
                     error = True
 
             # store content only if needed
-            content = bytearray(content) if len(subresources) > 0 or len(checksums) > 0 or error else None
+            content = bytearray(content) if len(subresources) > 0 or error else None
 
-            yield [warc, uri, error, encoding, subresources_contained, subresources, checksums_contained, checksums, keywords, content]
+            yield [warc, uri, error, encoding, content, has_subresources, subresources]
 
 
 if __name__ == "__main__":

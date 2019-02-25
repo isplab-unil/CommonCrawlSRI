@@ -15,3 +15,4 @@ aws emr create-cluster \
   --scale-down-behavior TERMINATE_AT_TASK_COMPLETION \
   --region us-east-1 \
   --output text
+
