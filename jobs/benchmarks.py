@@ -106,6 +106,8 @@ def process_warc(input, limit):
             keywords_count
         ))
 
+
+
 if __name__ == '__main__':
     args = parse_arguments()
     process_warc(args.input, args.limit)

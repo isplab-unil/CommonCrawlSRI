@@ -35,8 +35,12 @@ class Checksums(CommonCrawl):
     ])
 
     download_filter = b"download"
-    checksum_filter = re.compile(b'(?:([a-f0-9]{32})|([A-F0-9]{32}))')
-    checksum_extract = re.compile('(?:((?<!\w)[a-f0-9]{32,128}(?!\w))|((?<!\w)[A-F0-9]{32,128}(?!\w)))')
+
+    checksum_sizes = [32, 40, 56, 64, 96, 128]
+    checksum_filter = re.compile(b'[a-f0-9]{32}|[A-F0-9]{32}')
+    checksum_extract = re.compile('(?:(?<!\w)[a-f0-9]{32,128}(?!\w)|(?<!\w)[A-F0-9]{32,128}(?!\w))')
+    contains_number = re.compile('[0-9]')
+    contains_letter = re.compile('[a-f]|[A-F]')
 
     def extract_text(self, soup):
         body = soup(["body"])
@@ -46,19 +50,20 @@ class Checksums(CommonCrawl):
     def filter_checksum(self, checksum):
         if not len(checksum) in self.checksum_sizes:
             return False
-        if re.search(self.re_contains_number, checksum) is None:
+        if re.search(self.contains_number, checksum) is None:
             return False
-        if re.search(self.re_contains_letter, checksum) is None:
+        if re.search(self.contains_letter, checksum) is None:
             return False
         # check number of distinct digits
         return True
 
     def extract_checksums(self, text):
-        groups = re.findall(self.re_extract_checksums, text)
+        groups = re.findall(self.checksum_extract, text)
         checksums = set()
-        [[checksums.add(checksum.lower())
-          for checksum in group if self.filter_checksum(checksum)]
-         for group in groups]
+        for group in groups:
+            for checksum in group:
+                if self.filter_checksum(checksum):
+                    checksums.add(checksum.lower)
         return list(checksums)
 
     def process_record(self, warc_id, record):
@@ -75,7 +80,6 @@ class Checksums(CommonCrawl):
 
             # prune the records
             if has_download:
-
                 has_checksum = re.search(self.checksum_filter, content) is not None
                 if has_checksum:
                     try:
