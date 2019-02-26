@@ -26,12 +26,12 @@ from warcio.recordloader import ArchiveLoadFailed
 
 LOGGING_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
 
-class CommonCrawlSRI():
+class CommonCrawlChecksums():
     """
     A Spark job to analyze SRI adoption on CommonCrawl.
     """
 
-    name = "CommoncrawlSRI"
+    name = "CommoncrawlCheckums"
 
     log_level = 'INFO'
     logging.basicConfig(level=log_level, format=LOGGING_FORMAT)
@@ -42,15 +42,14 @@ class CommonCrawlSRI():
         StructField("error", BooleanType(), True),
         StructField("encoding", StringType(), True),
         StructField("content", BinaryType(), True),
-        StructField("has_subresources", BooleanType(), True),
-        StructField("subresources", ArrayType(StructType([
-            StructField("name", StringType(), True),
-            StructField("target", StringType(), True),
-            StructField("integrity", StringType(), True),
-            StructField("crossorigin", StringType(), True),
-            StructField("referrerpolicy", StringType(), True)
-        ])), True),
+        StructField("has_download", BooleanType, True),
+        StructField("has_checksum", BooleanType, True),
+        StructField("checksums", ArrayType(StringType()), True),
     ])
+
+    download_filter = b"download"
+    checksum_filter = re.compile(b'(?:([a-f0-9]{32})|([A-F0-9]{32}))')
+    checksum_extract = re.compile('(?:((?<!\w)[a-f0-9]{32,128}(?!\w))|((?<!\w)[A-F0-9]{32,128}(?!\w)))')
 
     def parse_arguments(self):
         """ Returns the parsed arguments from the command line """
@@ -196,6 +195,29 @@ class CommonCrawlSRI():
             tags.append((name, src, integrity, crossorigin, referrerpolicy))
         return tags
 
+    def extract_text(self, soup):
+        body = soup(["body"])
+        text = "" if not body else body[0].getText()
+        return text
+
+    def filter_checksum(self, checksum):
+        if not len(checksum) in self.checksum_sizes:
+            return False
+        if re.search(self.re_contains_number, checksum) is None:
+            return False
+        if re.search(self.re_contains_letter, checksum) is None:
+            return False
+        # check number of distinct digits
+        return True
+
+    def extract_checksums(self, text):
+        groups = re.findall(self.re_extract_checksums, text)
+        checksums = set()
+        [[checksums.add(checksum.lower())
+          for checksum in group if self.filter_checksum(checksum)]
+         for group in groups]
+        return list(checksums)
+
     def process_record(self, warc_id, record):
         if 'response' == record.rec_type:
 
@@ -204,27 +226,32 @@ class CommonCrawlSRI():
             error = False
             encoding = None
             content = record.content_stream().read()
-            has_subresources = b"integrity=" in content
-            subresources = []
+            has_download = self.download_filter in content
+            has_checksum = False
+            checksums = []
 
             # prune the records
-            if has_subresources:
-                try:
-                    # detect encoding and parse content
-                    encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
-                    soup = BeautifulSoup(content, "lxml", from_encoding=encoding)
+            if has_download:
 
-                    # extract tags that contain an integrity attribute
-                    subresources = self.extract_subresources(soup)
+                has_checksum = re.search(self.checksum_filter, content)
+                if has_checksum:
+                    try:
+                        # detect encoding and parse content
+                        encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
+                        soup = BeautifulSoup(content, "lxml", from_encoding=encoding)
 
-                except:
-                    error = True
+                        # extract text and checksums
+                        text = self.extract_text(soup)
+                        checksums = self.extract_checksums(text)
+
+                    except:
+                        error = True
 
             # store content only if needed
-            content = bytearray(content) if len(subresources) > 0 or error else None
+            content = bytearray(content) if has_download or error else None
 
-            yield [warc_id, uri, error, encoding, content, has_subresources, subresources]
+            yield [warc_id, uri, error, encoding, content, has_download, has_checksum, checksums]
 
 if __name__ == "__main__":
-    job = CommonCrawlSRI()
+    job = CommonCrawlChecksums()
     job.run()
