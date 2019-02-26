@@ -58,13 +58,8 @@ class Checksums(CommonCrawl):
         return True
 
     def extract_checksums(self, text):
-        groups = re.findall(self.checksum_extract, text)
-        checksums = set()
-        for group in groups:
-            for checksum in group:
-                if self.filter_checksum(checksum):
-                    checksums.add(checksum.lower)
-        return list(checksums)
+        checksums = [checksum for checksum in self.checksum_extract.findall(text) if self.filter_checksum(checksum)]
+        return list(set(checksums))
 
     def process_record(self, warc_id, record):
         if 'response' == record.rec_type:
@@ -80,7 +75,7 @@ class Checksums(CommonCrawl):
 
             # prune the records
             if has_download:
-                has_checksum = re.search(self.checksum_filter, content) is not None
+                has_checksum = self.checksum_filter.search(content) is not None
                 if has_checksum:
                     try:
                         # detect encoding and parse content

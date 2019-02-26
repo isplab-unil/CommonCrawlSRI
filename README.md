@@ -58,7 +58,8 @@ $SPARK_HOME/spark/bin/pyspark
 ```
 
 ```
-sqlContext.read.parquet("spark-warehouse/commoncrawlsri").registerTempTable("commoncrawlsri")
+sqlContext.read.parquet(".").registerTempTable("checksums")
+
 sqlContext.sql("SELECT count(*) FROM commoncrawlsri WHERE exception = TRUE").show()
 sqlContext.sql("SELECT count(*) FROM commoncrawlsri WHERE exception = FALSE").show()
 sqlContext.sql("SELECT * FROM commoncrawlsri WHERE size(tags) > 0").show()
