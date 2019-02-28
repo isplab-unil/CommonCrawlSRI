@@ -5,8 +5,8 @@ import boto3
 
 # Variable initialization
 job = 'full.py'
-input = '10_warc.txt'
-name = '%s-%s' % (job.replace('.', '-'), datetime.datetime.now().strftime("%Y-%m-%d-%H-%M"))
+input = '100_warc.txt'
+name = '%s-%s' % (datetime.datetime.now().strftime("%Y-%m-%d-%H-%M"), job.replace('.', '-'))
 
 # Create Amazon s3 bucket
 s3 = boto3.client('s3')
@@ -48,7 +48,7 @@ cluster = emr.run_job_flow(
             {
                 'Name': 'Spot Nodes',
                 'Market': 'SPOT',
-                'BidPrice': '0.038',
+                'BidPrice': '0.08',
                 'InstanceRole': 'TASK',
                 'InstanceType': 'm5.xlarge',
                 'InstanceCount': 2,
