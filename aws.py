@@ -5,7 +5,7 @@ import boto3
 
 # Variable initialization
 job = 'full.py'
-input = '10_warc.txt'
+input = '100_warc.txt'
 bucket = '%s-%s' % (job.replace('.', '-'), datetime.datetime.now().strftime("%Y-%m-%d-%H-%M"))
 
 # Create Amazon s3 bucket
@@ -32,20 +32,79 @@ cluster = emr.run_job_flow(
     Instances={
         'InstanceGroups': [
             {
-                'Name': 'Master Instance Group',
+                'Name': 'Master Node',
+                'Market': 'ON_DEMAND',
                 'InstanceRole': 'MASTER',
-                'InstanceType': 'm3.xlarge',
+                'InstanceType': 'm5.xlarge',
                 'InstanceCount': 1,
             },
             {
-                'Name': 'Master Instance Group',
+                'Name': 'Core Nodes',
+                'Market': 'ON_DEMAND',
                 'InstanceRole': 'CORE',
-                'InstanceType': 'm3.xlarge',
+                'InstanceType': 'm5.xlarge',
+                'InstanceCount': 2,
+            },
+            {
+                'Name': 'Spot Nodes',
+                'Market': 'SPOT',
+                'BidPrice': '0.005',
+                'InstanceRole': 'TASK',
+                'InstanceType': 'm5.xlarge',
                 'InstanceCount': 1,
+                'AutoScalingPolicy': {
+                    'Constraints': {
+                        'MinCapacity': 1,
+                        'MaxCapacity': 100
+                    },
+                    'Rules': [
+                        {
+                            'Name': 'Scale-out rule',
+                            'Action': {
+                                'SimpleScalingPolicyConfiguration': {
+                                    'AdjustmentType': 'CHANGE_IN_CAPACITY',
+                                    'ScalingAdjustment': 10,
+                                    'CoolDown': 100
+                                }
+                            },
+                            'Trigger': {
+                                'CloudWatchAlarmDefinition': {
+                                    'ComparisonOperator': 'LESS_THAN_OR_EQUAL',
+                                    'EvaluationPeriods': 1,
+                                    'MetricName': 'YARNMemoryAvailablePercentage',
+                                    'Namespace': 'AWS/ElasticMapReduce',
+                                    'Period': 300,
+                                    'Threshold': 20,
+                                }
+                            }
+                        },
+                        {
+                            'Name': 'Scale-in rule',
+                            'Action': {
+                                'SimpleScalingPolicyConfiguration': {
+                                    'AdjustmentType': 'CHANGE_IN_CAPACITY',
+                                    'ScalingAdjustment': -5,
+                                    'CoolDown': 100
+                                }
+                            },
+                            'Trigger': {
+                                'CloudWatchAlarmDefinition': {
+                                    'ComparisonOperator': 'GREATER_THAN_OR_EQUAL',
+                                    'EvaluationPeriods': 1,
+                                    'MetricName': 'YARNMemoryAvailablePercentage',
+                                    'Namespace': 'AWS/ElasticMapReduce',
+                                    'Period': 300,
+                                    'Threshold': 80,
+                                }
+                            }
+                        },
+                    ]
+                }
             },
         ],
         'KeepJobFlowAliveWhenNoSteps': True,
         'TerminationProtected': False,
+        'Ec2SubnetId': 'subnet-06ef506668d98740f',
     },
     Configurations=[
         {
@@ -96,14 +155,16 @@ cluster = emr.run_job_flow(
     ],
     JobFlowRole='EMR_EC2_DefaultRole',
     ServiceRole='EMR_DefaultRole',
+    ScaleDownBehavior='TERMINATE_AT_TASK_COMPLETION',
+    AutoScalingRole='EMR_AutoScaling_DefaultRole',
 )
 
-# Wait for the job to complete
+# Wait for the job to complete (max 1 day)
 waiter = emr.get_waiter('cluster_terminated')
 waiter.wait(
     ClusterId=cluster['JobFlowId'],
     WaiterConfig={
-        'Delay': 30,
-        'MaxAttempts': 60
+        'Delay': 60,
+        'MaxAttempts': 1440
     }
 )
