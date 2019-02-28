@@ -37,15 +37,15 @@ class Full(CommonCrawl):
             StructField("crossorigin", StringType(), True),
             StructField("referrerpolicy", StringType(), True)
         ])), True),
-        StructField("has_download", BooleanType(), True),
         StructField("has_checksum", BooleanType(), True),
         StructField("checksums", ArrayType(StringType()), True),
     ])
 
-    download_filter = b"download"
-    checksum_sizes = [32, 40, 56, 64, 96, 128]
-    checksum_filter = re.compile(b'[a-f0-9]{32}|[A-F0-9]{32}')
-    checksum_extract = re.compile('(?:(?<!\w)[a-f0-9]{32,128}(?!\w)|(?<!\w)[A-F0-9]{32,128}(?!\w))')
+    filter_subresource = b"integrity="
+    filter_download = b"download"
+    filter_checksum = re.compile(b'[a-f0-9]{32}|[A-F0-9]{32}')
+    check_checksum_sizes = [32, 40, 56, 64, 96, 128]
+    extract_checksums = re.compile('(?:(?<!\w)[a-f0-9]{32,128}(?!\w)|(?<!\w)[A-F0-9]{32,128}(?!\w))')
     contains_number = re.compile('[0-9]')
     contains_letter = re.compile('[a-f]|[A-F]')
 
@@ -55,7 +55,7 @@ class Full(CommonCrawl):
         return text
 
     def filter_checksum(self, checksum):
-        if not len(checksum) in self.checksum_sizes:
+        if not len(checksum) in self.check_checksum_sizes:
             return False
         if re.search(self.contains_number, checksum) is None:
             return False
@@ -65,7 +65,7 @@ class Full(CommonCrawl):
         return True
 
     def extract_checksums(self, text):
-        checksums = [checksum for checksum in self.checksum_extract.findall(text) if self.filter_checksum(checksum)]
+        checksums = [checksum for checksum in self.extract_checksums.findall(text) if self.filter_checksum(checksum)]
         return list(set(checksums))
 
     def extract_subresources(self, soup):
@@ -88,18 +88,14 @@ class Full(CommonCrawl):
             content = record.content_stream().read()
             csp = None
             cors = None
-
-            has_subresource = b"integrity=" in content
+            has_subresource = self.filter_subresource in content
             subresources = []
-
-            has_download = self.download_filter in content
-            has_checksum = False
-            if (has_download):
-                has_checksum = self.checksum_filter.search(content) is not None
+            has_checksum = self.filter_download in content and self.filter_checksum.search(content) is not None
             checksums = []
 
             if has_subresource or has_checksum:
                 try:
+                    # extract http headers
                     csp = record.http_headers.get_header('Content-Security-Policy')
                     cors = record.http_headers.get_header('Access-Control-Allow-Origin')
 
@@ -117,7 +113,7 @@ class Full(CommonCrawl):
                 except:
                     error = True
 
-            yield [warc_id, uri, error, csp, cors, has_subresource, subresources, has_download, has_checksum, checksums]
+            yield [warc_id, uri, error, csp, cors, has_subresource, subresources, has_checksum, checksums]
 
 
 if __name__ == "__main__":

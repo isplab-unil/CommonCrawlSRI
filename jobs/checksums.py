@@ -69,27 +69,24 @@ class Checksums(CommonCrawl):
             error = False
             encoding = None
             content = record.content_stream().read()
-            has_download = self.download_filter in content
-            has_checksum = False
+            has_checksum = self.filter_download in content and self.filter_checksum.search(content) is not None
             checksums = []
 
             # prune the records
-            if has_download:
-                has_checksum = self.checksum_filter.search(content) is not None
-                if has_checksum:
-                    try:
-                        # detect encoding and parse content
-                        encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
-                        soup = BeautifulSoup(content, "lxml", from_encoding=encoding)
+            if has_checksum:
+                try:
+                    # detect encoding and parse content
+                    encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
+                    soup = BeautifulSoup(content, "lxml", from_encoding=encoding)
 
-                        # extract text and checksums
-                        text = self.extract_text(soup)
-                        checksums = self.extract_checksums(text)
+                    # extract text and checksums
+                    text = self.extract_text(soup)
+                    checksums = self.extract_checksums(text)
 
-                    except:
-                        error = True
+                except:
+                    error = True
 
-            yield [warc_id, uri, error, encoding, has_download, has_checksum, checksums]
+            yield [warc_id, uri, error, encoding, has_checksum, checksums]
 
 if __name__ == "__main__":
     job = Checksums()
