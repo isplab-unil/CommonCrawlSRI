@@ -93,3 +93,7 @@ aws emr create-cluster \
 "Configurations": [{"Classification": "export", "Properties": {"PYSPARK_PYTHON": "/usr/bin/python3"}}]
 
 https://forums.aws.amazon.com/message.jspa?messageID=882723
+
+To create the default autoscaling group, you first have to create a cluster with the advanced wizzard, which will creates the correct default roles.
+
+https://forums.aws.amazon.com/thread.jspa?threadID=244491

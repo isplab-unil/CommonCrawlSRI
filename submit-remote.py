@@ -5,7 +5,7 @@ import boto3
 
 # Variable initialization
 job = 'full.py'
-input = '100_warc.txt'
+input = '10_warc.txt'
 name = '%s-%s' % (job.replace('.', '-'), datetime.datetime.now().strftime("%Y-%m-%d-%H-%M"))
 
 # Create Amazon s3 bucket
@@ -25,9 +25,9 @@ cluster = emr.run_job_flow(
     LogUri='s3://%s/logs' % name,
     ReleaseLabel='emr-5.21.0',
     Applications=[
-        {'Name': 'Ganglia'},
         {'Name': 'Spark'},
-        {'Name': 'Zeppelin'},
+        # {'Name': 'Ganglia'},
+        # {'Name': 'Zeppelin'},
     ],
     Instances={
         'InstanceGroups': [
@@ -59,22 +59,58 @@ cluster = emr.run_job_flow(
                     },
                     'Rules': [
                         {
-                            'Name': 'Scale-out rule',
+                            'Name': 'Scale-out rule 1',
                             'Action': {
                                 'SimpleScalingPolicyConfiguration': {
                                     'AdjustmentType': 'CHANGE_IN_CAPACITY',
-                                    'ScalingAdjustment': 2,
-                                    'CoolDown': 100
+                                    'ScalingAdjustment': 1,
+                                    'CoolDown': 300
                                 }
                             },
                             'Trigger': {
                                 'CloudWatchAlarmDefinition': {
-                                    'ComparisonOperator': 'LESS_THAN_OR_EQUAL',
-                                    'EvaluationPeriods': 1,
                                     'MetricName': 'YARNMemoryAvailablePercentage',
-                                    'Namespace': 'AWS/ElasticMapReduce',
+                                    'ComparisonOperator': 'LESS_THAN',
+                                    'Statistic': 'AVERAGE',
                                     'Period': 300,
-                                    'Threshold': 20,
+                                    'Dimensions': [
+                                        {
+                                            'Value': '${emr.clusterId}',
+                                            'Key': 'JobFlowId'
+                                        }
+                                    ],
+                                    'EvaluationPeriods': 1,
+                                    'Unit': 'PERCENT',
+                                    'Namespace': 'AWS/ElasticMapReduce',
+                                    'Threshold': 15,
+                                }
+                            }
+                        },
+                        {
+                            'Name': 'Scale-out rule 2',
+                            'Action': {
+                                'SimpleScalingPolicyConfiguration': {
+                                    'AdjustmentType': 'CHANGE_IN_CAPACITY',
+                                    'ScalingAdjustment': 1,
+                                    'CoolDown': 300
+                                }
+                            },
+                            'Trigger': {
+                                'CloudWatchAlarmDefinition': {
+                                    'MetricName': 'ContainerPendingRatio',
+                                    'ComparisonOperator': 'GREATER_THAN',
+                                    'Statistic': 'AVERAGE',
+                                    'Period': 300,
+                                    'Dimensions': [
+                                        {
+                                            'Value': '${emr.clusterId}',
+                                            'Key': 'JobFlowId'
+                                        }
+                                    ],
+                                    'EvaluationPeriods': 1,
+                                    'Unit': 'COUNT',
+                                    'Namespace': 'AWS/ElasticMapReduce',
+                                    'Threshold': 0.75,
                                 }
                             }
                         },
@@ -84,17 +120,25 @@ cluster = emr.run_job_flow(
                                 'SimpleScalingPolicyConfiguration': {
                                     'AdjustmentType': 'CHANGE_IN_CAPACITY',
                                     'ScalingAdjustment': -1,
-                                    'CoolDown': 100
+                                    'CoolDown': 300
                                 }
                             },
                             'Trigger': {
                                 'CloudWatchAlarmDefinition': {
-                                    'ComparisonOperator': 'GREATER_THAN_OR_EQUAL',
-                                    'EvaluationPeriods': 1,
                                     'MetricName': 'YARNMemoryAvailablePercentage',
-                                    'Namespace': 'AWS/ElasticMapReduce',
+                                    'ComparisonOperator': 'GREATER_THAN',
+                                    'Statistic': 'AVERAGE',
                                     'Period': 300,
-                                    'Threshold': 80,
+                                    'Dimensions': [
+                                        {
+                                            'Value': '${emr.clusterId}',
+                                            'Key': 'JobFlowId'
+                                        }
+                                    ],
+                                    'EvaluationPeriods': 1,
+                                    'Unit': 'PERCENT',
+                                    'Namespace': 'AWS/ElasticMapReduce',
+                                    'Threshold': 75,
                                 }
                             }
                         },
