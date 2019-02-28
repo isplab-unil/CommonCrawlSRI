@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
-import time
+import datetime
 import boto3
 
 # Variable initialization
-timestamp = int(time.time() * 1000)
-job = 'all.py'
+job = 'full.py'
 input = '10_warc.txt'
-bucket = 'commoncrawl-%s-%s' % (job, timestamp)
+bucket = '%s-%s' % (job.replace('.', '-'), datetime.datetime.now().strftime("%Y-%m-%d-%H-%M"))
 
 # Create Amazon s3 bucket
 s3 = boto3.client('s3')
@@ -15,15 +14,15 @@ s3.create_bucket(Bucket=bucket)
 
 # Upload files to s3 bucket
 s3.upload_file('bootstrap/bootstrap.sh', bucket, 'bootstrap/bootstrap.sh')
-s3.upload_file('input/%s' % input, bucket, 'input/%s' % input)
 s3.upload_file('jobs/commoncrawl.py', bucket, 'jobs/commoncrawl.py')
 s3.upload_file('jobs/%s' % job, bucket, 'jobs/%s' % job)
+s3.upload_file('input/%s' % input, bucket, 'input/%s' % input)
 
 # Create Amazon emr job
 emr = boto3.client('emr')
 cluster = emr.run_job_flow(
     Name='CommonCrawlJob',
-    LogUri='s3://$s/logs' % bucket,
+    LogUri='s3://%s/logs' % bucket,
     ReleaseLabel='emr-5.21.0',
     Applications=[
         {'Name': 'Ganglia'},
@@ -33,16 +32,16 @@ cluster = emr.run_job_flow(
     Instances={
         'InstanceGroups': [
             {
-                'InstanceCount': 1,
-                'InstanceGroupType': 'MASTER',
+                'Name': 'Master Instance Group',
+                'InstanceRole': 'MASTER',
                 'InstanceType': 'm3.xlarge',
-                'Name': 'Master Instance Group'
+                'InstanceCount': 1,
             },
             {
-                'InstanceCount': 1,
-                'InstanceGroupType': 'CORE',
+                'Name': 'Master Instance Group',
+                'InstanceRole': 'CORE',
                 'InstanceType': 'm3.xlarge',
-                'Name': 'Core Instance Group'
+                'InstanceCount': 1,
             },
         ],
         'KeepJobFlowAliveWhenNoSteps': True,
@@ -72,35 +71,37 @@ cluster = emr.run_job_flow(
     ],
     Steps=[
         {
-            'Type': 'spark',
-            'ActionOnFailure': 'CONTINUE',
             'Name': 'CommonCrawlJob',
-            'Args': [
-                '--py-files',
-                's3://%s/jobs/commoncrawl.py' % bucket,
-                '--deploy-mode',
-                'cluster',
-                '--master',
-                'yarn',
-                '--conf',
-                'spark.yarn.submit.waitAppCompletion=true',
-                's3://%s/jobs/full.py' % bucket,
-                's3://%s/input/10_warc.txt' % bucket,
-                's3://%s/output/' % bucket,
-                'output'
-            ],
+            'ActionOnFailure': 'CONTINUE',
+            'HadoopJarStep': {
+                'Jar': 'command-runner.jar',
+                'Args': [
+                    '/usr/bin/spark-submit',
+                    '--py-files',
+                    's3://%s/jobs/commoncrawl.py' % bucket,
+                    '--deploy-mode',
+                    'cluster',
+                    '--master',
+                    'yarn',
+                    '--conf',
+                    'spark.yarn.submit.waitAppCompletion=true',
+                    's3://%s/jobs/full.py' % bucket,
+                    's3://%s/input/10_warc.txt' % bucket,
+                    's3://%s/output/' % bucket,
+                    'output'
+                ],
+            },
+
         }
     ],
     JobFlowRole='EMR_EC2_DefaultRole',
     ServiceRole='EMR_DefaultRole',
-    ScaleDownBehavior='TERMINATE_AT_TASK_COMPLETION',
-    Region='us-east-1'
 )
 
 # Wait for the job to complete
 waiter = emr.get_waiter('cluster_terminated')
 waiter.wait(
-    ClusterId=cluster.JobFlowId,
+    ClusterId=cluster['JobFlowId'],
     WaiterConfig={
         'Delay': 30,
         'MaxAttempts': 60
