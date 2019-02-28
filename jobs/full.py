@@ -41,13 +41,14 @@ class Full(CommonCrawl):
         StructField("checksums", ArrayType(StringType()), True),
     ])
 
-    filter_subresource = b"integrity="
-    filter_download = b"download"
-    filter_checksum = re.compile(b'[a-f0-9]{32}|[A-F0-9]{32}')
-    check_checksum_sizes = [32, 40, 56, 64, 96, 128]
-    extract_checksums = re.compile('(?:(?<!\w)[a-f0-9]{32,128}(?!\w)|(?<!\w)[A-F0-9]{32,128}(?!\w))')
-    contains_number = re.compile('[0-9]')
-    contains_letter = re.compile('[a-f]|[A-F]')
+    def __init__(self):
+        self.filter_subresource = b"integrity="
+        self.filter_download = b"download"
+        self.filter_checksum = re.compile(b'[a-f0-9]{32}|[A-F0-9]{32}')
+        self.check_checksum_sizes = [32, 40, 56, 64, 96, 128]
+        self.extract_checksums = re.compile('(?:(?<!\w)[a-f0-9]{32,128}(?!\w)|(?<!\w)[A-F0-9]{32,128}(?!\w))')
+        self.contains_number = re.compile('[0-9]')
+        self.contains_letter = re.compile('[a-f]|[A-F]')
 
     def extract_text(self, soup):
         body = soup(["body"])

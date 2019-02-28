@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 
+usage()
+{
+    echo "Usage: <s3-bucket> <python-job> <input-file>"
+    exit 1
+}
+
+if $# -ne 3; then
+    usage
+fi
+
 name=commoncrawl-sri
 region=us-east-1
 logs=s3n://${name}/logs/

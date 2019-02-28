@@ -69,7 +69,7 @@ class Checksums(CommonCrawl):
             error = False
             encoding = None
             content = record.content_stream().read()
-            has_checksum = self.filter_download in content and self.filter_checksum.search(content) is not None
+            has_checksum = self.filter_download in content and self.filter_checksum.match(content) is not None
             checksums = []
 
             # prune the records

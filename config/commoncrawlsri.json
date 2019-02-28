@@ -1,19 +1,21 @@
 [
   {
     "Args": [
+      "--py-files",
+      "s3://commoncrawl-sri/jobs/commoncrawl.py",
       "--deploy-mode",
       "cluster",
       "--master",
       "yarn",
       "--conf",
       "spark.yarn.submit.waitAppCompletion=true",
-      "s3://commoncrawl-sri/jobs/commoncrawlsri.py",
+      "s3://commoncrawl-sri/jobs/full.py",
       "s3://commoncrawl-sri/input/10_warc.txt",
       "s3://commoncrawl-sri/output/",
-      "commoncrawlsri"
+      "output"
     ],
     "Type": "spark",
     "ActionOnFailure": "CONTINUE",
-    "Name": "Spark application"
+    "Name": "CommonCrawlJob"
   }
 ]

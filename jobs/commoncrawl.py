@@ -123,6 +123,8 @@ class CommonCrawl:
         no_sign_request = botocore.client.Config(signature_version=botocore.UNSIGNED)
         s3client = boto3.client('s3', config=no_sign_request)
 
+        warc_id = int(re.findall(r'-(\d{5})-ip', warc)[0])
+
         self.warc_input_processed.add(1)
         if warc.startswith('s3://'):
             self.get_logger().info('Reading from S3 {}'.format(warc))
@@ -150,7 +152,6 @@ class CommonCrawl:
             if warc.startswith('file:'):
                 warc = warc[5:]
             warc = os.path.join(base_dir, warc)
-            warc_id = int(re.findall(r'-(\d{5})-ip', warc)[0])
 
             try:
                 stream = open(warc, 'rb')
