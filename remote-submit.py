@@ -6,23 +6,23 @@ import boto3
 # Variable initialization
 job = 'full.py'
 input = '100_warc.txt'
-bucket = '%s-%s' % (job.replace('.', '-'), datetime.datetime.now().strftime("%Y-%m-%d-%H-%M"))
+name = '%s-%s' % (job.replace('.', '-'), datetime.datetime.now().strftime("%Y-%m-%d-%H-%M"))
 
 # Create Amazon s3 bucket
 s3 = boto3.client('s3')
-s3.create_bucket(Bucket=bucket)
+s3.create_bucket(Bucket=name)
 
 # Upload files to s3 bucket
-s3.upload_file('bootstrap/bootstrap.sh', bucket, 'bootstrap/bootstrap.sh')
-s3.upload_file('jobs/commoncrawl.py', bucket, 'jobs/commoncrawl.py')
-s3.upload_file('jobs/%s' % job, bucket, 'jobs/%s' % job)
-s3.upload_file('input/%s' % input, bucket, 'input/%s' % input)
+s3.upload_file('bootstrap/bootstrap.sh', name, 'bootstrap/bootstrap.sh')
+s3.upload_file('jobs/commoncrawl.py', name, 'jobs/commoncrawl.py')
+s3.upload_file('jobs/%s' % job, name, 'jobs/%s' % job)
+s3.upload_file('input/%s' % input, name, 'input/%s' % input)
 
 # Create Amazon emr job
 emr = boto3.client('emr')
 cluster = emr.run_job_flow(
-    Name='CommonCrawlJob',
-    LogUri='s3://%s/logs' % bucket,
+    Name=name,
+    LogUri='s3://%s/logs' % name,
     ReleaseLabel='emr-5.21.0',
     Applications=[
         {'Name': 'Ganglia'},
@@ -48,14 +48,14 @@ cluster = emr.run_job_flow(
             {
                 'Name': 'Spot Nodes',
                 'Market': 'SPOT',
-                'BidPrice': '0.005',
+                'BidPrice': '0.038',
                 'InstanceRole': 'TASK',
                 'InstanceType': 'm5.xlarge',
-                'InstanceCount': 1,
+                'InstanceCount': 2,
                 'AutoScalingPolicy': {
                     'Constraints': {
-                        'MinCapacity': 1,
-                        'MaxCapacity': 100
+                        'MinCapacity': 2,
+                        'MaxCapacity': 10
                     },
                     'Rules': [
                         {
@@ -63,7 +63,7 @@ cluster = emr.run_job_flow(
                             'Action': {
                                 'SimpleScalingPolicyConfiguration': {
                                     'AdjustmentType': 'CHANGE_IN_CAPACITY',
-                                    'ScalingAdjustment': 10,
+                                    'ScalingAdjustment': 2,
                                     'CoolDown': 100
                                 }
                             },
@@ -83,7 +83,7 @@ cluster = emr.run_job_flow(
                             'Action': {
                                 'SimpleScalingPolicyConfiguration': {
                                     'AdjustmentType': 'CHANGE_IN_CAPACITY',
-                                    'ScalingAdjustment': -5,
+                                    'ScalingAdjustment': -1,
                                     'CoolDown': 100
                                 }
                             },
@@ -124,29 +124,29 @@ cluster = emr.run_job_flow(
         {
             'Name': 'BoostrapScript',
             'ScriptBootstrapAction': {
-                'Path': 's3://%s/bootstrap/bootstrap.sh' % bucket,
+                'Path': 's3://%s/bootstrap/bootstrap.sh' % name,
             }
         },
     ],
     Steps=[
         {
-            'Name': 'CommonCrawlJob',
+            'Name': name,
             'ActionOnFailure': 'CONTINUE',
             'HadoopJarStep': {
                 'Jar': 'command-runner.jar',
                 'Args': [
                     '/usr/bin/spark-submit',
                     '--py-files',
-                    's3://%s/jobs/commoncrawl.py' % bucket,
+                    's3://%s/jobs/commoncrawl.py' % name,
                     '--deploy-mode',
                     'cluster',
                     '--master',
                     'yarn',
                     '--conf',
                     'spark.yarn.submit.waitAppCompletion=true',
-                    's3://%s/jobs/full.py' % bucket,
-                    's3://%s/input/10_warc.txt' % bucket,
-                    's3://%s/output/' % bucket,
+                    's3://%s/jobs/full.py' % name,
+                    's3://%s/input/%s' % (name, input),
+                    's3://%s/output/' % name,
                     'output'
                 ],
             },
