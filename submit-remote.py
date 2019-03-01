@@ -5,8 +5,12 @@ import boto3
 
 # Variable initialization
 job = 'full.py'
-input = '100_warc.txt'
-name = '%s-%s' % (datetime.datetime.now().strftime("%Y-%m-%d-%H-%M"), job.replace('.', '-'))
+input = '20_warc.txt'
+master = 1
+core = 3
+task = 0
+name = '%s-%s-%s-m%s-c%s-t%s' % (
+    datetime.datetime.now().strftime("%Y-%m-%d-%H-%M"), job.replace(".", "-").replace("_", "-"), input.replace(".", "-").replace("_", "-"), master, core, task)
 
 # Create Amazon s3 bucket
 s3 = boto3.client('s3')
@@ -36,117 +40,27 @@ cluster = emr.run_job_flow(
                 'Market': 'ON_DEMAND',
                 'InstanceRole': 'MASTER',
                 'InstanceType': 'm5.xlarge',
-                'InstanceCount': 1,
+                'InstanceCount': master,
             },
             {
                 'Name': 'Core Nodes',
                 'Market': 'ON_DEMAND',
                 'InstanceRole': 'CORE',
                 'InstanceType': 'm5.xlarge',
-                'InstanceCount': 2,
+                'InstanceCount': core,
             },
-            {
-                'Name': 'Spot Nodes',
-                'Market': 'SPOT',
-                'BidPrice': '0.08',
-                'InstanceRole': 'TASK',
-                'InstanceType': 'm5.xlarge',
-                'InstanceCount': 2,
-                'AutoScalingPolicy': {
-                    'Constraints': {
-                        'MinCapacity': 2,
-                        'MaxCapacity': 10
-                    },
-                    'Rules': [
-                        {
-                            'Name': 'Scale-out rule 1',
-                            'Action': {
-                                'SimpleScalingPolicyConfiguration': {
-                                    'AdjustmentType': 'CHANGE_IN_CAPACITY',
-                                    'ScalingAdjustment': 1,
-                                    'CoolDown': 300
-                                }
-                            },
-                            'Trigger': {
-                                'CloudWatchAlarmDefinition': {
-                                    'MetricName': 'YARNMemoryAvailablePercentage',
-                                    'ComparisonOperator': 'LESS_THAN',
-                                    'Statistic': 'AVERAGE',
-                                    'Period': 300,
-                                    'Dimensions': [
-                                        {
-                                            'Value': '${emr.clusterId}',
-                                            'Key': 'JobFlowId'
-                                        }
-                                    ],
-                                    'EvaluationPeriods': 1,
-                                    'Unit': 'PERCENT',
-                                    'Namespace': 'AWS/ElasticMapReduce',
-                                    'Threshold': 15,
-                                }
-                            }
-                        },
-                        {
-                            'Name': 'Scale-out rule 2',
-                            'Action': {
-                                'SimpleScalingPolicyConfiguration': {
-                                    'AdjustmentType': 'CHANGE_IN_CAPACITY',
-                                    'ScalingAdjustment': 1,
-                                    'CoolDown': 300
-                                }
-                            },
-                            'Trigger': {
-                                'CloudWatchAlarmDefinition': {
-                                    'MetricName': 'ContainerPendingRatio',
-                                    'ComparisonOperator': 'GREATER_THAN',
-                                    'Statistic': 'AVERAGE',
-                                    'Period': 300,
-                                    'Dimensions': [
-                                        {
-                                            'Value': '${emr.clusterId}',
-                                            'Key': 'JobFlowId'
-                                        }
-                                    ],
-                                    'EvaluationPeriods': 1,
-                                    'Unit': 'COUNT',
-                                    'Namespace': 'AWS/ElasticMapReduce',
-                                    'Threshold': 0.75,
-                                }
-                            }
-                        },
-                        {
-                            'Name': 'Scale-in rule',
-                            'Action': {
-                                'SimpleScalingPolicyConfiguration': {
-                                    'AdjustmentType': 'CHANGE_IN_CAPACITY',
-                                    'ScalingAdjustment': -1,
-                                    'CoolDown': 300
-                                }
-                            },
-                            'Trigger': {
-                                'CloudWatchAlarmDefinition': {
-                                    'MetricName': 'YARNMemoryAvailablePercentage',
-                                    'ComparisonOperator': 'GREATER_THAN',
-                                    'Statistic': 'AVERAGE',
-                                    'Period': 300,
-                                    'Dimensions': [
-                                        {
-                                            'Value': '${emr.clusterId}',
-                                            'Key': 'JobFlowId'
-                                        }
-                                    ],
-                                    'EvaluationPeriods': 1,
-                                    'Unit': 'PERCENT',
-                                    'Namespace': 'AWS/ElasticMapReduce',
-                                    'Threshold': 75,
-                                }
-                            }
-                        },
-                    ]
-                }
-            },
+            # {
+            #     'Name': 'Task Nodes',
+            #     'Market': 'SPOT',
+            #     'BidPrice': '0.08',
+            #     'InstanceRole': 'TASK',
+            #     'InstanceType': 'm5.xlarge',
+            #     'InstanceCount': task,
+            # }
         ],
-        'KeepJobFlowAliveWhenNoSteps': True,
+        # The key pair must be created from the ec2 console
+        'Ec2KeyName': 'commoncrawl-sri',
+        'KeepJobFlowAliveWhenNoSteps': False,
         'TerminationProtected': False,
         'Ec2SubnetId': 'subnet-06ef506668d98740f',
     },
@@ -175,7 +89,7 @@ cluster = emr.run_job_flow(
     Steps=[
         {
             'Name': name,
-            'ActionOnFailure': 'CONTINUE',
+            'ActionOnFailure': 'TERMINATE_CLUSTER',
             'HadoopJarStep': {
                 'Jar': 'command-runner.jar',
                 'Args': [
@@ -201,6 +115,7 @@ cluster = emr.run_job_flow(
     ServiceRole='EMR_DefaultRole',
     ScaleDownBehavior='TERMINATE_AT_TASK_COMPLETION',
     AutoScalingRole='EMR_AutoScaling_DefaultRole',
+    VisibleToAllUsers=True,
 )
 
 # Wait for the job to complete (max 1 day)
