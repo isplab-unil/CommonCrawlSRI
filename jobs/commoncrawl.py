@@ -23,7 +23,6 @@ from warcio.recordloader import ArchiveLoadFailed
 
 LOGGING_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
 
-
 class CommonCrawl:
     """
     A Spark job to analyze SRI adoption on CommonCrawl.
@@ -31,6 +30,7 @@ class CommonCrawl:
 
     name = "Commoncrawl"
 
+    partitions = 1000
     log_level = 'INFO'
     logging.basicConfig(level=log_level, format=LOGGING_FORMAT)
 
@@ -47,8 +47,10 @@ class CommonCrawl:
                                 help="Input path")
         arg_parser.add_argument("output",
                                 help="Output path")
-        arg_parser.add_argument("table",
-                                help="Output table")
+        arg_parser.add_argument("--partitions",
+                                type=int,
+                                default=self.partitions,
+                                help="Number of partitions")
         arg_parser.add_argument("--local_temp_dir", default=None,
                                 help="Local temporary directory, used to"
                                      " buffer content from S3")
@@ -104,16 +106,15 @@ class CommonCrawl:
         sc.stop()
 
     def run_job(self, sc, sqlc):
-        output = sc.textFile(self.args.input) \
+        output = sc.textFile(self.args.input, minPartitions=self.args.partitions) \
             .flatMap(self.process_warc)
-
         sqlc.createDataFrame(output, schema=self.schema) \
             .write \
             .format("parquet") \
             .option("compression", "gzip") \
             .option("path", self.args.output) \
             .mode("overwrite") \
-            .saveAsTable(self.args.table)
+            .saveAsTable("output")
 
     def process_warc(self, warc):
         s3pattern = re.compile('^s3://([^/]+)/(.+)')

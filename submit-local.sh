@@ -7,4 +7,6 @@ spark-submit --py-files ./jobs/commoncrawl.py \
         $job \
         --log_level WARN \
         ./input/test_warc.txt \
-        ./spark-warehouse/ commoncrawlsri
+        ./spark-warehouse/ \
+        --partitions \
+        1

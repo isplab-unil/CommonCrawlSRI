@@ -2,15 +2,33 @@
 
 import datetime
 import boto3
+import argparse
 
-# Variable initialization
-job = 'full.py'
-input = '20_warc.txt'
-master = 1
-core = 3
-task = 0
-name = '%s-%s-%s-m%s-c%s-t%s' % (
-    datetime.datetime.now().strftime("%Y-%m-%d-%H-%M"), job.replace(".", "-").replace("_", "-"), input.replace(".", "-").replace("_", "-"), master, core, task)
+parser = argparse.ArgumentParser(description='Process some integers.')
+parser.add_argument('job', help='a python script')
+parser.add_argument('input', help='an input file')
+parser.add_argument('partitions', type=int, help='a number of partitions')
+parser.add_argument('master', type=int, help='a number of master nodes')
+parser.add_argument('core', type=int, help='a number of core nodes')
+parser.add_argument('task', type=int, help='a number of task nodes')
+
+args = parser.parse_args()
+
+with open('start.sh', 'w') as file:
+    file.write("#!/usr/bin/env python3")
+    file.write("./submit-remote.py %s %s %s %s %s %s" % (args.job, args.input, args.partitions, args.master, args.core, args.task))
+
+# Initialize the job name
+name = '%s-%s-%s-m%s-c%s-t%s-p%s' % (
+    datetime.datetime.now().strftime("%Y-%m-%d-%H-%M"),
+    args.job.replace(".", "-").replace("_", "-"),
+    args.input.replace(".", "-").replace("_", "-"),
+    args.master,
+    args.core,
+    args.task,
+    args.partitions)
+
+print("Job name: %s" % name)
 
 # Create Amazon s3 bucket
 s3 = boto3.client('s3')
@@ -20,8 +38,8 @@ s3.create_bucket(Bucket=name)
 s3.upload_file('submit-remote.py', name, 'submit-remote.py')
 s3.upload_file('bootstrap/bootstrap.sh', name, 'bootstrap/bootstrap.sh')
 s3.upload_file('jobs/commoncrawl.py', name, 'jobs/commoncrawl.py')
-s3.upload_file('jobs/%s' % job, name, 'jobs/%s' % job)
-s3.upload_file('input/%s' % input, name, 'input/%s' % input)
+s3.upload_file('jobs/%s' % args.job, name, 'jobs/%s' % args.job)
+s3.upload_file('input/%s' % args.input, name, 'input/%s' % args.input)
 
 # Create Amazon emr job
 emr = boto3.client('emr')
@@ -31,7 +49,7 @@ cluster = emr.run_job_flow(
     ReleaseLabel='emr-5.21.0',
     Applications=[
         {'Name': 'Spark'},
-        # {'Name': 'Ganglia'},
+        {'Name': 'Ganglia'},
         # {'Name': 'Zeppelin'},
     ],
     Instances={
@@ -41,23 +59,23 @@ cluster = emr.run_job_flow(
                 'Market': 'ON_DEMAND',
                 'InstanceRole': 'MASTER',
                 'InstanceType': 'm5.xlarge',
-                'InstanceCount': master,
+                'InstanceCount': args.master,
             },
             {
                 'Name': 'Core Nodes',
                 'Market': 'ON_DEMAND',
                 'InstanceRole': 'CORE',
                 'InstanceType': 'm5.xlarge',
-                'InstanceCount': core,
+                'InstanceCount': args.core,
             },
-            # {
-            #     'Name': 'Task Nodes',
-            #     'Market': 'SPOT',
-            #     'BidPrice': '0.08',
-            #     'InstanceRole': 'TASK',
-            #     'InstanceType': 'm5.xlarge',
-            #     'InstanceCount': task,
-            # }
+            {
+                'Name': 'Task Nodes',
+                'Market': 'SPOT',
+                'BidPrice': '0.08',
+                'InstanceRole': 'TASK',
+                'InstanceType': 'm5.xlarge',
+                'InstanceCount': args.task,
+            }
         ],
         # The key pair must be created from the ec2 console
         'Ec2KeyName': 'commoncrawl-sri',
@@ -104,9 +122,10 @@ cluster = emr.run_job_flow(
                     '--conf',
                     'spark.yarn.submit.waitAppCompletion=true',
                     's3://%s/jobs/full.py' % name,
-                    's3://%s/input/%s' % (name, input),
+                    's3://%s/input/%s' % (name, args.input),
                     's3://%s/output/' % name,
-                    'output'
+                    '--partitions',
+                    str(args.partitions),
                 ],
             },
 
@@ -128,3 +147,5 @@ waiter.wait(
         'MaxAttempts': 1440
     }
 )
+
+print("Finished!")

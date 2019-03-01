@@ -97,3 +97,9 @@ https://forums.aws.amazon.com/message.jspa?messageID=882723
 To create the default autoscaling group, you first have to create a cluster with the advanced wizzard, which will creates the correct default roles.
 
 https://forums.aws.amazon.com/thread.jspa?threadID=244491
+
+## Resources
+
+Interesting summary form an EPFL student:
+
+https://dlab.epfl.ch/2017-09-30-what-i-learned-from-processing-big-data-with-spark/
