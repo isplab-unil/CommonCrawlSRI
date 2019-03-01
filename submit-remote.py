@@ -16,7 +16,8 @@ name = '%s-%s-%s-m%s-c%s-t%s' % (
 s3 = boto3.client('s3')
 s3.create_bucket(Bucket=name)
 
-# Upload files to s3 bucket
+# Upload files to s3 bucket for reproducibility
+s3.upload_file('submit-remote.py', name, 'submit-remote.py')
 s3.upload_file('bootstrap/bootstrap.sh', name, 'bootstrap/bootstrap.sh')
 s3.upload_file('jobs/commoncrawl.py', name, 'jobs/commoncrawl.py')
 s3.upload_file('jobs/%s' % job, name, 'jobs/%s' % job)
