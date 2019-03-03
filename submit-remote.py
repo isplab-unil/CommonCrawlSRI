@@ -4,6 +4,7 @@ import datetime
 import boto3
 import argparse
 
+# Parse command line arguments
 parser = argparse.ArgumentParser(description='Process some integers.')
 parser.add_argument('job', help='a python script')
 parser.add_argument('input', help='an input file')
@@ -11,12 +12,12 @@ parser.add_argument('partitions', type=int, help='a number of partitions')
 parser.add_argument('master', type=int, help='a number of master nodes')
 parser.add_argument('core', type=int, help='a number of core nodes')
 parser.add_argument('task', type=int, help='a number of task nodes')
-
 args = parser.parse_args()
 
-with open('start.sh', 'w') as file:
-    file.write("#!/usr/bin/env python3")
-    file.write("./submit-remote.py %s %s %s %s %s %s" % (args.job, args.input, args.partitions, args.master, args.core, args.task))
+# Write startup script
+with open('start-remote.sh', 'w') as file:
+    file.write("#!/bin/bash\n")
+    file.write("./submit-remote.py %s %s %s %s %s %s\n" % (args.job, args.input, args.partitions, args.master, args.core, args.task))
 
 # Initialize the job name
 name = '%s-%s-%s-m%s-c%s-t%s-p%s' % (
@@ -28,6 +29,7 @@ name = '%s-%s-%s-m%s-c%s-t%s-p%s' % (
     args.task,
     args.partitions)
 
+# Print the cluster and bucket name
 print("Job name: %s" % name)
 
 # Create Amazon s3 bucket
@@ -35,6 +37,7 @@ s3 = boto3.client('s3')
 s3.create_bucket(Bucket=name)
 
 # Upload files to s3 bucket for reproducibility
+s3.upload_file('start-remote.sh', name, 'start-remote.sh')
 s3.upload_file('submit-remote.py', name, 'submit-remote.py')
 s3.upload_file('bootstrap/bootstrap.sh', name, 'bootstrap/bootstrap.sh')
 s3.upload_file('jobs/commoncrawl.py', name, 'jobs/commoncrawl.py')
@@ -49,39 +52,37 @@ cluster = emr.run_job_flow(
     ReleaseLabel='emr-5.21.0',
     Applications=[
         {'Name': 'Spark'},
-        {'Name': 'Ganglia'},
-        # {'Name': 'Zeppelin'},
+        {'Name': 'Ganglia'}, # Monitoring
     ],
     Instances={
         'InstanceGroups': [
             {
-                'Name': 'Master Node',
+                'Name': 'Master Node', # The master node is only used for the coordination
                 'Market': 'ON_DEMAND',
                 'InstanceRole': 'MASTER',
                 'InstanceType': 'm5.xlarge',
                 'InstanceCount': args.master,
             },
             {
-                'Name': 'Core Nodes',
+                'Name': 'Core Nodes', # The core nodes are used for HDFS persistence
                 'Market': 'ON_DEMAND',
                 'InstanceRole': 'CORE',
                 'InstanceType': 'm5.xlarge',
                 'InstanceCount': args.core,
             },
             {
-                'Name': 'Task Nodes',
-                'Market': 'SPOT',
-                'BidPrice': '0.08',
+                'Name': 'Task Nodes', # The task nodes are only used to compute results
+                'Market': 'SPOT', # The spot instance are ephemeral and should not be used to persist data
+                'BidPrice': '0.08', # The bid price can be guessed using the ec2 console
                 'InstanceRole': 'TASK',
                 'InstanceType': 'm5.xlarge',
                 'InstanceCount': args.task,
             }
         ],
-        # The key pair must be created from the ec2 console
-        'Ec2KeyName': 'commoncrawl-sri',
-        'KeepJobFlowAliveWhenNoSteps': False,
-        'TerminationProtected': False,
-        'Ec2SubnetId': 'subnet-06ef506668d98740f',
+        'Ec2KeyName': 'commoncrawl-sri', # A key pair must be created from the ec2 console
+        'KeepJobFlowAliveWhenNoSteps': False, # Shutdown the cluster after the execution of the job
+        'TerminationProtected': False, # Shutdown the cluster after the execution of the job
+        'Ec2SubnetId': 'subnet-06ef506668d98740f', # A VPC subnet must be created from the ec2 console
     },
     Configurations=[
         {
