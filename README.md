@@ -90,7 +90,9 @@ aws emr create-cluster \
   --region us-east-1
 ```
 
+```json
 "Configurations": [{"Classification": "export", "Properties": {"PYSPARK_PYTHON": "/usr/bin/python3"}}]
+```
 
 https://forums.aws.amazon.com/message.jspa?messageID=882723
 
@@ -106,6 +108,18 @@ https://dlab.epfl.ch/2017-09-30-what-i-learned-from-processing-big-data-with-spa
 
 ## Gettint started
 
+We first need to install the command line client for AWS (awscli) and the python SDK for AWS (boto3).
+
 ```
-pip3 install awscli
+pip3 install awscli boto3
+```
+
+When configuring the AWS client with your access key, setting the region to us-east-1 is important as the commoncrawl dataset is hosted there.
+
+```
+aws configure
+AWS Access Key ID [None]: xxxxxxxxxxxxxx
+AWS Secret Access Key [None]: xxxxxxxxxxxxxx
+Default region name [None]: us-east-1
+Default output format [None]:
 ```
