@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import re
 
 __author__ = "Bertil Chapuis, Kévin Huguenin, Romain Artru"
 __copyright__ = "Copyright 2019, The Information Security and Privacy Lab at the University of Lausanne (https://www.unil.ch/isplab/)"
@@ -14,19 +15,17 @@ from bs4.dammit import EncodingDetector
 from pyspark.sql.types import StructType, StructField, StringType, ArrayType, BinaryType, BooleanType, IntegerType
 from commoncrawl import CommonCrawl
 
-class SRI(CommonCrawl):
+
+class CommonCrawlSri(CommonCrawl):
     """
-    A Spark job to analyze SRI adoption on CommonCrawl.
+    A Spark job to analyze the integrity of subresources on CommonCrawl.
     """
 
     name = "CommoncrawlSRI"
 
     schema = StructType([
-        StructField("src", IntegerType(), False),
+        StructField("warc", IntegerType(), False),
         StructField("uri", StringType(), False),
-        StructField("error", BooleanType(), True),
-        StructField("encoding", StringType(), True),
-        StructField("content", BinaryType(), True),
         StructField("csp", StringType(), True),
         StructField("cors", StringType(), True),
         StructField("has_subresource", BooleanType(), True),
@@ -37,7 +36,38 @@ class SRI(CommonCrawl):
             StructField("crossorigin", StringType(), True),
             StructField("referrerpolicy", StringType(), True)
         ])), True),
+        StructField("keywords", ArrayType(StringType()), True),
+        StructField("has_checksum", BooleanType(), True),
+        StructField("checksums", ArrayType(StringType()), True),
+        StructField("error", StringType(), True),
     ])
+
+    def __init__(self):
+        self.subresource_filters = [b"integrity="]
+        self.keyword_patterns = [("download", re.compile('download', re.IGNORECASE))]
+        self.checksum_filter = re.compile(b'[a-f0-9]{32}|[A-F0-9]{32}')
+        self.checksum_sizes = [32, 40, 56, 64, 96, 128]
+        self.checksums_extract = re.compile('(?:(?<!\w)[a-f0-9]{32,128}(?!\w)|(?<!\w)[A-F0-9]{32,128}(?!\w))')
+        self.contains_number = re.compile('[0-9]')
+        self.contains_letter = re.compile('[a-f]|[A-F]')
+
+    def extract_text(self, soup):
+        body = soup(["body"])
+        text = "" if not body else body[0].getText()
+        return text
+
+    def filter_checksum(self, checksum):
+        if not len(checksum) in self.checksum_sizes:
+            return False
+        if re.search(self.contains_number, checksum) is None:
+            return False
+        if re.search(self.contains_letter, checksum) is None:
+            return False
+        return True
+
+    def extract_checksums(self, text):
+        checksums = [checksum for checksum in self.checksums_extract.findall(text) if self.checksum_filter(checksum)]
+        return list(set(checksums))
 
     def extract_subresources(self, soup):
         tags = list()
@@ -55,35 +85,40 @@ class SRI(CommonCrawl):
 
             # variables initialization
             uri = record.rec_headers.get_header('WARC-Target-URI')
-            error = False
-            encoding = None
             content = record.content_stream().read()
             csp = None
             cors = None
-            has_subresource = b"integrity=" in content
+            has_subresource = any([subresource_filter in content for subresource_filter in self.subresource_filters])
             subresources = []
+            keywords = [keyword for (keyword, pattern) in self.keyword_patterns if pattern.search(content) is not None]
+            has_checksum = len(keywords) > 0 and self.checksum_filter.search(content) is not None
+            checksums = []
+            error = None
 
-            # prune the records
-            if has_subresource:
+            # prune records
+            if has_subresource or has_checksum:
                 try:
+                    # extract http headers
                     csp = record.http_headers.get_header('Content-Security-Policy')
                     cors = record.http_headers.get_header('Access-Control-Allow-Origin')
 
                     # detect encoding and parse content
                     encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
-                    soup = BeautifulSoup(content, "lxml", from_encoding=encoding)
+                    soup = BeautifulSoup(content, "lxml", from_encoding=encoding)  # check html5 type
 
                     # extract tags that contain an integrity attribute
                     subresources = self.extract_subresources(soup)
 
-                except:
-                    error = True
+                    # extract text and checksums
+                    text = self.extract_text(soup)
+                    checksums = self.checksums_extract(text)
 
-            # store content only if needed
-            content = bytearray(content) if len(subresources) > 0 or error else None
+                except Exception as e:
+                    error = e.message
 
-            yield [warc_id, uri, error, encoding, content, csp, cors, has_subresource, subresources]
+            yield [warc_id, uri, csp, cors, has_subresource, subresources, keywords, has_checksum, checksums, error]
+
 
 if __name__ == "__main__":
-    job = SRI()
+    job = CommonCrawlSri()
     job.run()

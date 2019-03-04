@@ -4,7 +4,7 @@ import datetime
 import boto3
 
 # Variable initialization
-job = 'full.py'
+job = 'commoncrawlsri.py'
 input = '100_warc.txt'
 name = '%s-%s' % (datetime.datetime.now().strftime("%Y-%m-%d-%H-%M"), job.replace('.', '-'))
 
@@ -188,7 +188,7 @@ cluster = emr.run_job_flow(
                     'yarn',
                     '--conf',
                     'spark.yarn.submit.waitAppCompletion=true',
-                    's3://%s/jobs/full.py' % name,
+                    's3://%s/jobs/commoncrawlsri.py' % name,
                     's3://%s/input/%s' % (name, input),
                     's3://%s/output/' % name,
                     'output'

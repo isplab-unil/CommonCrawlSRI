@@ -5,19 +5,20 @@ import boto3
 import argparse
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Process some integers.')
-parser.add_argument('job', help='a python script')
-parser.add_argument('input', help='an input file')
-parser.add_argument('partitions', type=int, help='a number of partitions')
-parser.add_argument('master', type=int, help='a number of master nodes')
-parser.add_argument('core', type=int, help='a number of core nodes')
-parser.add_argument('task', type=int, help='a number of task nodes')
+parser = argparse.ArgumentParser(description='Submit a pyspark job to aws emr.')
+parser.add_argument('job', help='a python script', required=True)
+parser.add_argument('input', help='an input file', required=True)
+parser.add_argument('partitions', type=int, help='a number of partitions', required=True)
+parser.add_argument('master', type=int, help='a number of master nodes', required=True)
+parser.add_argument('core', type=int, help='a number of core nodes', required=True)
+parser.add_argument('task', type=int, help='a number of task nodes', required=True)
 args = parser.parse_args()
 
 # Write startup script
 with open('start-remote.sh', 'w') as file:
     file.write("#!/bin/bash\n")
-    file.write("./submit-remote.py %s %s %s %s %s %s\n" % (args.job, args.input, args.partitions, args.master, args.core, args.task))
+    file.write("./submit-remote.py %s %s %s %s %s %s\n" % (
+    args.job, args.input, args.partitions, args.master, args.core, args.task))  # TODO: sys.args
 
 # Initialize the job name
 name = '%s-%s-%s-m%s-c%s-t%s-p%s' % (
@@ -52,37 +53,38 @@ cluster = emr.run_job_flow(
     ReleaseLabel='emr-5.21.0',
     Applications=[
         {'Name': 'Spark'},
-        {'Name': 'Ganglia'}, # Monitoring
+        {'Name': 'Ganglia'},  # Monitoring
     ],
     Instances={
         'InstanceGroups': [
             {
-                'Name': 'Master Node', # The master node is only used for the coordination
+                'Name': 'Master Node',  # The master node is only used for the coordination
                 'Market': 'ON_DEMAND',
                 'InstanceRole': 'MASTER',
                 'InstanceType': 'm5.xlarge',
                 'InstanceCount': args.master,
             },
             {
-                'Name': 'Core Nodes', # The core nodes are used for HDFS persistence
+                'Name': 'Core Nodes',  # The core nodes are used for HDFS persistence
                 'Market': 'ON_DEMAND',
                 'InstanceRole': 'CORE',
                 'InstanceType': 'm5.xlarge',
                 'InstanceCount': args.core,
             },
             {
-                'Name': 'Task Nodes', # The task nodes are only used to compute results
-                'Market': 'SPOT', # The spot instance are ephemeral and should not be used to persist data
-                'BidPrice': '0.08', # The bid price can be guessed using the ec2 console
+                'Name': 'Task Nodes',  # The task nodes are only used to compute results
+                'Market': 'SPOT',  # The spot instance are ephemeral and should not be used to persist data
+                # TODO: bid price as a parameter
+                'BidPrice': '0.08',  # The bid price can be guessed using the ec2 console
                 'InstanceRole': 'TASK',
                 'InstanceType': 'm5.xlarge',
                 'InstanceCount': args.task,
             }
         ],
-        'Ec2KeyName': 'commoncrawl-sri', # A key pair must be created from the ec2 console
-        'KeepJobFlowAliveWhenNoSteps': False, # Shutdown the cluster after the execution of the job
-        'TerminationProtected': False, # Shutdown the cluster after the execution of the job
-        'Ec2SubnetId': 'subnet-06ef506668d98740f', # A VPC subnet must be created from the ec2 console
+        'Ec2KeyName': 'commoncrawl-sri',  # A key pair must be created from the ec2 console
+        'KeepJobFlowAliveWhenNoSteps': False,  # Shutdown the cluster after the execution of the job
+        'TerminationProtected': False,  # Shutdown the cluster after the execution of the job
+        'Ec2SubnetId': 'subnet-06ef506668d98740f',  # A VPC subnet must be created from the ec2 console
     },
     Configurations=[
         {
@@ -122,14 +124,13 @@ cluster = emr.run_job_flow(
                     'yarn',
                     '--conf',
                     'spark.yarn.submit.waitAppCompletion=true',
-                    's3://%s/jobs/full.py' % name,
+                    's3://%s/jobs/commoncrawlsri.py' % name,
                     's3://%s/input/%s' % (name, args.input),
                     's3://%s/output/' % name,
                     '--partitions',
                     str(args.partitions),
                 ],
             },
-
         }
     ],
     JobFlowRole='EMR_EC2_DefaultRole',
