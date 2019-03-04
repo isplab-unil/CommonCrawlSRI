@@ -12,13 +12,14 @@ parser.add_argument('partitions', type=int, help='a number of partitions', requi
 parser.add_argument('master', type=int, help='a number of master nodes', required=True)
 parser.add_argument('core', type=int, help='a number of core nodes', required=True)
 parser.add_argument('task', type=int, help='a number of task nodes', required=True)
+parser.add_argument('bid_price', type=int, help='a maximal bid price for task nodes', required=True)
 args = parser.parse_args()
 
 # Write startup script
 with open('start-remote.sh', 'w') as file:
     file.write("#!/bin/bash\n")
     file.write("./submit-remote.py %s %s %s %s %s %s\n" % (
-    args.job, args.input, args.partitions, args.master, args.core, args.task))  # TODO: sys.args
+    args.job, args.input, args.partitions, args.master, args.core, args.task))
 
 # Initialize the job name
 name = '%s-%s-%s-m%s-c%s-t%s-p%s' % (
@@ -74,8 +75,7 @@ cluster = emr.run_job_flow(
             {
                 'Name': 'Task Nodes',  # The task nodes are only used to compute results
                 'Market': 'SPOT',  # The spot instance are ephemeral and should not be used to persist data
-                # TODO: bid price as a parameter
-                'BidPrice': '0.08',  # The bid price can be guessed using the ec2 console
+                'BidPrice': args.bid_price,  # The bid price can be guessed using the ec2 console
                 'InstanceRole': 'TASK',
                 'InstanceType': 'm5.xlarge',
                 'InstanceCount': args.task,
