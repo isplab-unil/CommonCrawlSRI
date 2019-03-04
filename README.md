@@ -103,3 +103,9 @@ https://forums.aws.amazon.com/thread.jspa?threadID=244491
 Interesting summary form an EPFL student:
 
 https://dlab.epfl.ch/2017-09-30-what-i-learned-from-processing-big-data-with-spark/
+
+## Gettint started
+
+```
+pip3 install awscli
+```
