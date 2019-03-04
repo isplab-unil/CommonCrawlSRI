@@ -44,7 +44,7 @@ class CommonCrawlSri(CommonCrawl):
 
     def __init__(self):
         self.subresource_filters = [b"integrity="]
-        self.keyword_patterns = [("download", re.compile('download', re.IGNORECASE))]
+        self.keyword_patterns = [("download", re.compile(b'download', re.IGNORECASE))]
         self.checksum_filter = re.compile(b'[a-f0-9]{32}|[A-F0-9]{32}')
         self.checksum_sizes = [32, 40, 56, 64, 96, 128]
         self.checksums_extract = re.compile('(?:(?<!\w)[a-f0-9]{32,128}(?!\w)|(?<!\w)[A-F0-9]{32,128}(?!\w))')
@@ -114,7 +114,7 @@ class CommonCrawlSri(CommonCrawl):
                     checksums = self.checksums_extract(text)
 
                 except Exception as e:
-                    error = e.message
+                    error = str(e)
 
             yield [warc_id, uri, csp, cors, has_subresource, subresources, keywords, has_checksum, checksums, error]
 
