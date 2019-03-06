@@ -47,7 +47,7 @@ class CommonCrawlSri(CommonCrawl):
         self.keyword_patterns = [("download", re.compile(b'download', re.IGNORECASE))]
         self.checksum_filter = re.compile(b'[a-f0-9]{32}|[A-F0-9]{32}')
         self.checksum_sizes = [32, 40, 56, 64, 96, 128]
-        self.checksums_extract = re.compile('(?:(?<!\w)[a-f0-9]{32,128}(?!\w)|(?<!\w)[A-F0-9]{32,128}(?!\w))')
+        self.checksum_pattern = re.compile('(?:(?<!\w)[a-f0-9]{32,128}(?!\w)|(?<!\w)[A-F0-9]{32,128}(?!\w))')
         self.contains_number = re.compile('[0-9]')
         self.contains_letter = re.compile('[a-f]|[A-F]')
 
@@ -66,7 +66,7 @@ class CommonCrawlSri(CommonCrawl):
         return True
 
     def extract_checksums(self, text):
-        checksums = [checksum for checksum in self.checksums_extract.findall(text) if self.checksum_filter(checksum)]
+        checksums = [checksum for checksum in self.checksum_pattern.findall(text) if self.filter_checksum(checksum)]
         return list(set(checksums))
 
     def extract_subresources(self, soup):
@@ -111,7 +111,9 @@ class CommonCrawlSri(CommonCrawl):
 
                     # extract text and checksums
                     text = self.extract_text(soup)
-                    checksums = self.checksums_extract(text)
+                    # todo: check if text still contains the keyword
+                    # todo: check why the list of checksums is always empty
+                    checksums = self.extract_checksums(text)
 
                 except Exception as e:
                     error = str(e)

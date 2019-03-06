@@ -6,13 +6,13 @@ import argparse
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Submit a pyspark job to aws emr.')
-parser.add_argument('job', help='a python script', required=True)
-parser.add_argument('input', help='an input file', required=True)
-parser.add_argument('partitions', type=int, help='a number of partitions', required=True)
-parser.add_argument('master', type=int, help='a number of master nodes', required=True)
-parser.add_argument('core', type=int, help='a number of core nodes', required=True)
-parser.add_argument('task', type=int, help='a number of task nodes', required=True)
-parser.add_argument('bid_price', type=int, help='a maximal bid price for task nodes', required=True)
+parser.add_argument('job', help='a python script')
+parser.add_argument('input', help='an input file')
+parser.add_argument('partitions', type=int, help='a number of partitions')
+parser.add_argument('master', type=int, help='a number of master nodes')
+parser.add_argument('core', type=int, help='a number of core nodes')
+parser.add_argument('task', type=int, help='a number of task nodes')
+parser.add_argument('bid_price', type=float, help='a maximal bid price for task nodes')
 args = parser.parse_args()
 
 # Write startup script
@@ -75,7 +75,7 @@ cluster = emr.run_job_flow(
             {
                 'Name': 'Task Nodes',  # The task nodes are only used to compute results
                 'Market': 'SPOT',  # The spot instance are ephemeral and should not be used to persist data
-                'BidPrice': args.bid_price,  # The bid price can be guessed using the ec2 console
+                'BidPrice': str(args.bid_price),  # The bid price can be guessed using the ec2 console
                 'InstanceRole': 'TASK',
                 'InstanceType': 'm5.xlarge',
                 'InstanceCount': args.task,
