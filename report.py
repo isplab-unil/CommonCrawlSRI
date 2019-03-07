@@ -78,7 +78,8 @@ SELECT
 FROM (
     SELECT filter(subresources, s -> s.name == 'script' AND s.target IS NOT NULL AND s.integrity IS NOT NULL) AS subresources 
     FROM cc 
-    WHERE size(filter(subresources, s -> s.name == 'script' AND s.target IS NOT NULL AND s.integrity IS NOT NULL)) > 0
+    WHERE has_subresource = true 
+      AND size(filter(subresources, s -> s.name == 'script' AND s.target IS NOT NULL AND s.integrity IS NOT NULL)) > 0
 ) LATERAL VIEW explode(subresources) T AS sri 
 GROUP BY script 
 ORDER BY number DESC
@@ -92,7 +93,8 @@ SELECT
 FROM (
     SELECT filter(subresources, s -> s.name == 'link' AND s.target IS NOT NULL AND s.integrity IS NOT NULL) AS subresources 
     FROM cc 
-    WHERE size(filter(subresources, s -> s.name == 'link' AND s.target IS NOT NULL AND s.integrity IS NOT NULL)) > 0
+    WHERE has_subresource = true 
+      AND size(filter(subresources, s -> s.name == 'link' AND s.target IS NOT NULL AND s.integrity IS NOT NULL)) > 0
 ) LATERAL VIEW explode(subresources) T AS sri 
 GROUP BY link 
 ORDER BY number DESC
@@ -105,7 +107,8 @@ sqlContext.sql("""
 SELECT if(sri.target LIKE 'https%', 'https', if(sri.target LIKE 'http%', 'http', if(uri LIKE 'https%', 'https', 'http'))) AS protocol, count(*) as tag_targets FROM (
     SELECT uri, filter(subresources, s -> s.integrity IS NOT NULL) AS subresources 
     FROM cc 
-    WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
+    WHERE has_subresource = true 
+      AND size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
 ) LATERAL VIEW explode(subresources) T AS sri
 GROUP BY protocol
 ORDER BY tag_targets DESC
@@ -116,7 +119,8 @@ sqlContext.sql("""
 SELECT if(sri.target LIKE 'https%', 'https', if(sri.target LIKE 'http%', 'http', if(uri LIKE 'https%', 'https', 'http'))) AS protocol, count(*) as script_targets FROM (
     SELECT uri, filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL) AS subresources 
     FROM cc 
-    WHERE size(filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL)) > 0
+    WHERE has_subresource = true 
+      AND size(filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL)) > 0
 ) LATERAL VIEW explode(subresources) T AS sri
 GROUP BY protocol
 ORDER BY script_targets DESC
@@ -127,7 +131,8 @@ sqlContext.sql("""
 SELECT if(sri.target LIKE 'https%', 'https', if(sri.target LIKE 'http%', 'http', if(uri LIKE 'https%', 'https', 'http'))) AS protocol, count(*) as link_targets FROM (
     SELECT uri, filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NULL) AS subresources 
     FROM cc 
-    WHERE size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NULL)) > 0
+    WHERE has_subresource = true 
+      AND size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NULL)) > 0
 ) LATERAL VIEW explode(subresources) T AS sri
 GROUP BY protocol
 ORDER BY link_targets DESC
@@ -138,25 +143,28 @@ ORDER BY link_targets DESC
 # What is the percentage of tags that specifies the integrity attribute on a page that includes at least one tag with the integrity attribute?
 sqlContext.sql("""
 SELECT 
-    round(100 * sum(size(filter(subresources, s -> s.integrity IS NOT NULL))) / sum(size(subresources)), 2) AS percentage_of_tags_with_integrity_attribute
+    round(100 * sum(size(filter(subresources, s -> s.integrity IS NOT NULL))) / sum(size(subresources)), 2) AS percentage
 FROM cc 
-WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
+WHERE has_subresource = true 
+  AND size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
 """).show()
 
 # What is the percentage of scripts that specifies the integrity attribute on a page that includes at least one script with the integrity attribute?
 sqlContext.sql("""
 SELECT 
-    round(100 * sum(size(filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL))) / sum(size(filter(subresources, s -> s.name == 'script'))), 2) AS percentage_of_scripts_with_integrity_attribute
+    round(100 * sum(size(filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL))) / sum(size(filter(subresources, s -> s.name == 'script'))), 2) AS percentage
 FROM cc 
-WHERE size(filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL)) > 0
+WHERE has_subresource = true 
+  AND size(filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL)) > 0
 """).show()
 
 # What is the percentage of links that specifies the integrity attribute on a page that includes at least one link with the integrity attribute?
 sqlContext.sql("""
 SELECT 
-    round(100 * sum(size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NULL))) / sum(size(filter(subresources, s -> s.name == 'link'))), 2) AS percentage_of_links_with_integrity_attribute
+    round(100 * sum(size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NULL))) / sum(size(filter(subresources, s -> s.name == 'link'))), 2) AS percentage
 FROM cc 
-WHERE size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NULL)) > 0
+WHERE has_subresource = true 
+  AND size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NULL)) > 0
 """).show()
 
 # ---------------------------
@@ -164,9 +172,11 @@ WHERE size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NUL
 # What is the number of pages by hashing algorithms?
 sqlContext.sql("""
 SELECT 
-    substr(sri.integrity, 0, 6) as hash, count(*)
+    substr(sri.integrity, 0, 6) as hash, 
+    count(*)
 FROM cc LATERAL VIEW explode(subresources) T AS sri
-WHERE sri.integrity IS NOT NULL
+WHERE has_subresource = true 
+  AND sri.integrity IS NOT NULL
 GROUP BY hash
 """).show()
 
@@ -175,7 +185,8 @@ GROUP BY hash
 # What are the most popular subresources included in pages
 sqlContext.sql("""
 SELECT 
-    substr(sri.target, instr(sri.target, '//') + 2) AS library, count(*) AS number
+    substr(sri.target, instr(sri.target, '//') + 2) AS library, 
+    count(*) AS number
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.target IS NOT NULL AND sri.integrity IS NOT NULL
 GROUP BY library
@@ -188,11 +199,11 @@ ORDER BY number DESC
 
 # How many pages contain at least one checksum
 sqlContext.sql("""
-SELECT round(100 * count(*) / (SELECT count(*) FROM cc), 2) AS percentage 
+SELECT 
+    round(100 * count(*) / (SELECT count(*) FROM cc), 2) AS percentage 
 FROM cc 
 WHERE has_checksum = true AND size(checksums) > 0
 """).show()
-
 
 # ---------------------------
 # -------- HEADERS ----------

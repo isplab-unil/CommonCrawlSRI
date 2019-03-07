@@ -1,1 +1,5 @@
 - add a list of keywords
+- improve list of websites 
+    - find kévin's email (22 mai 2018 15:45) popcorn time, ethereum, amarok, bitcoin, clonezilla, octave, blichbit, fosshub
+    - get alexandre's website
+    - cross cisco and commoncrawl dataset

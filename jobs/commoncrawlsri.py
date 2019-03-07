@@ -12,7 +12,7 @@ __email__ = "bertil.chapuis@unil.ch"
 
 from bs4 import BeautifulSoup
 from bs4.dammit import EncodingDetector
-from pyspark.sql.types import StructType, StructField, StringType, ArrayType, BinaryType, BooleanType, IntegerType
+from pyspark.sql.types import StructType, StructField, StringType, ArrayType, BooleanType, IntegerType
 from commoncrawl import CommonCrawl
 
 
@@ -111,8 +111,6 @@ class CommonCrawlSri(CommonCrawl):
 
                     # extract text and checksums
                     text = self.extract_text(soup)
-                    # todo: check if text still contains the keyword
-                    # todo: check why the list of checksums is always empty
                     checksums = self.extract_checksums(text)
 
                 except Exception as e:
