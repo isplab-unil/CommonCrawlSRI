@@ -26,6 +26,23 @@ GROUP BY protocol
 """).show()
 
 # ---------------------------
+# ----- VERIFICATIONS -------
+# ---------------------------
+
+sqlContext.sql("""
+SELECT subresources  FROM cc WHERE has_subresource LIMIT 10
+""").show()
+
+sqlContext.sql("""
+SELECT checksums  FROM cc WHERE has_checksum LIMIT 10
+""").show()
+
+sqlContext.sql("""
+SELECT keywords  FROM cc WHERE has_keyword LIMIT 10
+""").show()
+
+
+# ---------------------------
 # ---------- SRI ------------
 # ---------------------------
 
