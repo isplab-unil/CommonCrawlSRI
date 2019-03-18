@@ -1,5 +1,7 @@
 from pyspark.shell import sqlContext
 
+sqlContext.read.csv('top-1m.csv').registerTempTable('top1m')
+
 sqlContext.read.parquet("output/*.parquet").registerTempTable("cc")
 
 # ---------------------------
@@ -239,3 +241,24 @@ FROM cc
 GROUP BY cors
 ORDER BY number DESC
 """).show(20, False)
+
+# ---------------------------
+# --------- TOP1M -----------
+# ---------------------------
+
+sqlContext.sql("""
+SELECT _c1 as host
+FROM top1m
+""").show(20, False)
+
+sqlContext.sql("""
+SELECT uri, checksums
+FROM cc 
+WHERE has_checksum = true AND has_keyword = true
+AND uri LIKE '%download%'
+AND substring_index(substring_index(uri, '/', 3), '/', -1) IN (
+    SELECT _c1 as host
+    FROM top1m
+)
+""").show(20, False)
+
