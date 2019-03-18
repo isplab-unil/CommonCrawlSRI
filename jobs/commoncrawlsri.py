@@ -63,9 +63,10 @@ class CommonCrawlSri(CommonCrawl):
         self.contains_letter = re.compile('[a-f]|[A-F]')
 
     def extract_text(self, soup):
-        body = soup(["body"])
-        text = "" if not body else body[0].getText()
-        return text
+        # remove all javascript and stylesheet code
+        for tag in soup(["script", "style"]):
+            tag.extract()
+        return soup.get_text()
 
     def filter_checksum(self, checksum):
         if not len(checksum) in self.checksum_sizes:
@@ -123,7 +124,7 @@ class CommonCrawlSri(CommonCrawl):
 
                     # detect encoding and parse content
                     encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
-                    soup = BeautifulSoup(content, "lxml", from_encoding=encoding)  # check html5 type
+                    soup = BeautifulSoup(content, "html5lib", from_encoding=encoding)  # check html5 type
 
                     if has_subresource_filter:
                         subresources = self.extract_subresources(soup)
