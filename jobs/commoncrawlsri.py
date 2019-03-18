@@ -100,8 +100,7 @@ class CommonCrawlSri(CommonCrawl):
             csp = None
             cors = None
 
-            has_subresource_filter = any(
-                [subresource_filter in content for subresource_filter in self.subresource_filters])
+            has_subresource_filter = any([subresource_filter in content for subresource_filter in self.subresource_filters])
             has_subresource = False
             subresources = []
 

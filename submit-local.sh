@@ -6,7 +6,7 @@ rm -fr ./../output/ && \
 spark-submit --py-files ./jobs/commoncrawl.py \
         $job \
         --log_level WARN \
-        ./input/test_warc.txt \
+        ./input/test.txt \
         ./spark-warehouse/ \
         --partitions \
         1

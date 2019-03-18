@@ -9,12 +9,12 @@ sqlContext.read.parquet("output/*.parquet").registerTempTable("cc")
 # What is the number of pages that have been processed?
 sqlContext.sql("""
 SELECT count(*) AS number FROM cc
-""").show()
+""").show(20, False)
 
 # What is the number of warc files that have been processed?
 sqlContext.sql("""
 SELECT count(DISTINCT warc) AS number FROM cc
-""").show()
+""").show(20, False)
 
 # What is the number of pages by protocol?
 sqlContext.sql("""
@@ -23,7 +23,7 @@ SELECT
     round(100 * count(*) / (SELECT count(*) FROM cc), 2) AS percentage 
 FROM cc 
 GROUP BY protocol
-""").show()
+""").show(20, False)
 
 # ---------------------------
 # ----- VERIFICATIONS -------
@@ -31,15 +31,15 @@ GROUP BY protocol
 
 sqlContext.sql("""
 SELECT subresources  FROM cc WHERE has_subresource LIMIT 10
-""").show()
+""").show(20, False)
 
 sqlContext.sql("""
 SELECT checksums  FROM cc WHERE has_checksum LIMIT 10
-""").show()
+""").show(20, False)
 
 sqlContext.sql("""
 SELECT keywords  FROM cc WHERE has_keyword LIMIT 10
-""").show()
+""").show(20, False)
 
 
 # ---------------------------
@@ -53,7 +53,7 @@ SELECT
 FROM cc 
 WHERE has_subresource = true 
   AND size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
-""").show()
+""").show(20, False)
 
 # What is the percentage of pages that includes at least one script with the integrity attribute?
 sqlContext.sql("""
@@ -62,7 +62,7 @@ SELECT
 FROM cc 
 WHERE has_subresource = true 
   AND size(filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL)) > 0
-""").show()
+""").show(20, False)
 
 # What is the percentage of pages that includes at least one link with the integrity attribute?
 sqlContext.sql("""
@@ -71,7 +71,7 @@ SELECT
 FROM cc 
 WHERE has_subresource = true 
   AND size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NULL)) > 0
-""").show()
+""").show(20, False)
 
 # ---------------------------
 
@@ -85,7 +85,7 @@ WHERE has_subresource = true
   AND size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0 
 GROUP BY tags 
 ORDER BY tags ASC
-""").show()
+""").show(20, False)
 
 # What is the distribution of pages by scripts?
 sqlContext.sql("""
@@ -100,7 +100,7 @@ FROM (
 ) LATERAL VIEW explode(subresources) T AS sri 
 GROUP BY script 
 ORDER BY number DESC
-""").show()
+""").show(20, False)
 
 # What is the distribution of pages by links?
 sqlContext.sql("""
@@ -115,7 +115,7 @@ FROM (
 ) LATERAL VIEW explode(subresources) T AS sri 
 GROUP BY link 
 ORDER BY number DESC
-""").show()
+""").show(20, False)
 
 # ---------------------------
 
@@ -129,7 +129,7 @@ SELECT if(sri.target LIKE 'https%', 'https', if(sri.target LIKE 'http%', 'http',
 ) LATERAL VIEW explode(subresources) T AS sri
 GROUP BY protocol
 ORDER BY tag_targets DESC
-""").show()
+""").show(20, False)
 
 # What is the distribution of scripts with integrity attribute per protocol?
 sqlContext.sql("""
@@ -141,7 +141,7 @@ SELECT if(sri.target LIKE 'https%', 'https', if(sri.target LIKE 'http%', 'http',
 ) LATERAL VIEW explode(subresources) T AS sri
 GROUP BY protocol
 ORDER BY script_targets DESC
-""").show()
+""").show(20, False)
 
 # What is the distribution of links with integrity attribute per protocol?
 sqlContext.sql("""
@@ -153,7 +153,7 @@ SELECT if(sri.target LIKE 'https%', 'https', if(sri.target LIKE 'http%', 'http',
 ) LATERAL VIEW explode(subresources) T AS sri
 GROUP BY protocol
 ORDER BY link_targets DESC
-""").show()
+""").show(20, False)
 
 # ---------------------------
 
@@ -164,7 +164,7 @@ SELECT
 FROM cc 
 WHERE has_subresource = true 
   AND size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
-""").show()
+""").show(20, False)
 
 # What is the percentage of scripts that specifies the integrity attribute on a page that includes at least one script with the integrity attribute?
 sqlContext.sql("""
@@ -173,7 +173,7 @@ SELECT
 FROM cc 
 WHERE has_subresource = true 
   AND size(filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL)) > 0
-""").show()
+""").show(20, False)
 
 # What is the percentage of links that specifies the integrity attribute on a page that includes at least one link with the integrity attribute?
 sqlContext.sql("""
@@ -182,7 +182,7 @@ SELECT
 FROM cc 
 WHERE has_subresource = true 
   AND size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NULL)) > 0
-""").show()
+""").show(20, False)
 
 # ---------------------------
 
@@ -195,7 +195,7 @@ FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE has_subresource = true 
   AND sri.integrity IS NOT NULL
 GROUP BY hash
-""").show()
+""").show(20, False)
 
 # ---------------------------
 
@@ -208,7 +208,7 @@ FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.target IS NOT NULL AND sri.integrity IS NOT NULL
 GROUP BY library
 ORDER BY number DESC
-""").show()
+""").show(20, False)
 
 # ---------------------------
 # ------- CHECKSUMS ---------
@@ -220,7 +220,7 @@ SELECT
     round(100 * count(*) / (SELECT count(*) FROM cc), 2) AS percentage 
 FROM cc 
 WHERE has_checksum = true AND size(checksums) > 0
-""").show()
+""").show(20, False)
 
 # ---------------------------
 # -------- HEADERS ----------
@@ -231,11 +231,11 @@ SELECT csp, count(*) as number
 FROM cc
 GROUP BY csp
 ORDER BY number DESC
-""").show()
+""").show(20, False)
 
 sqlContext.sql("""
 SELECT cors, count(*) as number
 FROM cc
 GROUP BY cors
 ORDER BY number DESC
-""").show()
+""").show(20, False)
