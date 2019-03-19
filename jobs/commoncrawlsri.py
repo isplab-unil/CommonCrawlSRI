@@ -64,7 +64,7 @@ class CommonCrawlSri(CommonCrawl):
 
     def extract_text(self, soup):
         # remove all javascript and stylesheet code
-        for tag in soup(["head", "script", "style"]):
+        for tag in soup(["head", "style", "script"]):
             tag.extract()
         return soup.get_text()
 
