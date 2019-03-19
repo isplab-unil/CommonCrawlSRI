@@ -64,7 +64,7 @@ class CommonCrawlSri(CommonCrawl):
 
     def extract_text(self, soup):
         # remove all javascript and stylesheet code
-        for tag in soup(["script", "style"]):
+        for tag in soup(["head", "script", "style"]):
             tag.extract()
         return soup.get_text()
 
@@ -124,7 +124,7 @@ class CommonCrawlSri(CommonCrawl):
 
                     # detect encoding and parse content
                     encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
-                    soup = BeautifulSoup(content, "html5lib", from_encoding=encoding)  # check html5 type
+                    soup = BeautifulSoup(content, "lxml", from_encoding=encoding)
 
                     if has_subresource_filter:
                         subresources = self.extract_subresources(soup)
