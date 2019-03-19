@@ -246,19 +246,45 @@ ORDER BY number DESC
 # --------- TOP1M -----------
 # ---------------------------
 
-sqlContext.sql("""
-SELECT _c1 as host
-FROM top1m
-""").show(20, False)
+
+from selenium import webdriver
+import hashlib
+
+def render(id, url, checksums):
+    driver = webdriver.Chrome()
+    driver.get(url)
+    driver.implicitly_wait(10)
+    element = driver.find_element_by_tag_name('body')
+    element_png = element.screenshot_as_png
+    file = id + ".png"
+    with open(file, "wb") as file:
+        file.write(element_png)
+    driver.quit()
+
 
 sqlContext.sql("""
-SELECT uri, checksums
+SELECT sha1(uri) as id, uri, checksums
 FROM cc 
 WHERE has_checksum = true AND has_keyword = true
 AND uri LIKE '%download%'
 AND substring_index(substring_index(uri, '/', 3), '/', -1) IN (
     SELECT _c1 as host
     FROM top1m
+    LIMIT 10000
 )
-""").show(20, False)
+LIMIT 10
+""").foreach(lambda r: render(r.id, r.uri, r.checksums))
 
+
+
+sqlContext.sql("""
+SELECT DISTINCT substring_index(substring_index(uri, '/', 3), '/', -1)
+FROM cc JOIN top1m ON ( substring_index(substring_index(uri, '/', 3), '/', -1) = _c1)
+WHERE has_checksum = true AND has_keyword = true
+""").show(100, False)
+
+
+sqlContext.sql("""
+SELECT count(*)
+FROM cc 
+""").show(100, False)
