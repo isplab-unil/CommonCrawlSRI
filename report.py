@@ -278,10 +278,18 @@ LIMIT 10
 
 
 sqlContext.sql("""
-SELECT DISTINCT substring_index(substring_index(uri, '/', 3), '/', -1)
+SELECT _c0, uri
+FROM cc JOIN top1m ON ( substring_index(substring_index(uri, '/', 3), '/', -1) = _c1)
+WHERE has_checksum = true AND has_keyword = true AND uri LIKE '%download%'
+ORDER BY CAST(_c0 as INT)
+""").show(1000, False)
+
+
+sqlContext.sql("""
+SELECT COUNT(*)
 FROM cc JOIN top1m ON ( substring_index(substring_index(uri, '/', 3), '/', -1) = _c1)
 WHERE has_checksum = true AND has_keyword = true
-""").show(100, False)
+""").show(1000, False)
 
 
 sqlContext.sql("""
