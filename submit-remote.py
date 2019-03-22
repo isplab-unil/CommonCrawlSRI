@@ -124,7 +124,7 @@ cluster = emr.run_job_flow(
                     'yarn',
                     '--conf',
                     'spark.yarn.submit.waitAppCompletion=true',
-                    's3://%s/jobs/commoncrawlsri.py' % name,
+                    's3://%s/jobs/sri.py' % name,
                     's3://%s/input/%s' % (name, args.input),
                     's3://%s/output/' % name,
                     '--partitions',

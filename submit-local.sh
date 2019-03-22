@@ -1,12 +1,9 @@
 #!/bin/bash
 
-job=$1
-
-rm -fr ./../output/ && \
 spark-submit --py-files ./jobs/commoncrawl.py \
-        $job \
+        $1 \
         --log_level WARN \
-        ./input/test.txt \
-        ./spark-warehouse/ \
+        .$2 \
+        ./output-local/ \
         --partitions \
         1
