@@ -13,6 +13,10 @@ sqlContext.sql("""
 SELECT count(*) FROM cc
 """).show(20, False)
 
+sqlContext.sql("""
+SELECT count(*) FROM top1m
+""").show(20, False)
+
 
 sqlContext.sql("""
 SELECT count(*) AS number FROM cc
