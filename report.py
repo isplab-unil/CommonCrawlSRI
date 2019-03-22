@@ -10,7 +10,19 @@ sqlContext.read.parquet("output/*.parquet").registerTempTable("cc")
 
 # What is the number of pages that have been processed?
 sqlContext.sql("""
+SELECT count(*) FROM cc
+""").show(20, False)
+
+
+sqlContext.sql("""
 SELECT count(*) AS number FROM cc
+WHERE has_keyword_filter = true
+""").show(20, False)
+
+sqlContext.sql("""
+SELECT count(*) AS number FROM cc
+WHERE has_keyword_filter = true 
+AND has_keyword = false
 """).show(20, False)
 
 # What is the number of warc files that have been processed?
@@ -42,7 +54,6 @@ SELECT checksums  FROM cc WHERE has_checksum LIMIT 10
 sqlContext.sql("""
 SELECT keywords  FROM cc WHERE has_keyword LIMIT 10
 """).show(20, False)
-
 
 # ---------------------------
 # ---------- SRI ------------
@@ -87,7 +98,7 @@ WHERE has_subresource = true
   AND size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0 
 GROUP BY tags 
 ORDER BY tags ASC
-""").show(20, False)
+""").foreach(lambda r: print(str(r.tags) + "\t" + str(r.number)))
 
 # What is the distribution of pages by scripts?
 sqlContext.sql("""
@@ -216,13 +227,39 @@ ORDER BY number DESC
 # ------- CHECKSUMS ---------
 # ---------------------------
 
-# How many pages contain at least one checksum
 sqlContext.sql("""
 SELECT 
     round(100 * count(*) / (SELECT count(*) FROM cc), 2) AS percentage 
 FROM cc 
-WHERE has_checksum = true AND size(checksums) > 0
+WHERE uri LIKE '%download%' 
 """).show(20, False)
+
+sqlContext.sql("""
+SELECT 
+    round(100 * count(*) / (SELECT count(*) FROM cc), 2) AS percentage 
+FROM cc 
+WHERE has_checksum
+""").show(20, False)
+
+sqlContext.sql("""
+SELECT 
+    round(100 * count(*) / (SELECT count(*) FROM cc), 4) AS percentage 
+FROM cc 
+WHERE has_keyword AND has_checksum
+""").show(20, False)
+
+sqlContext.sql("""
+SELECT 
+    round(100 * count(*) / (SELECT count(*) FROM cc), 4) AS percentage 
+FROM cc 
+WHERE  has_keyword AND has_checksum AND uri LIKE '%download%'  
+""").show(20, False)
+
+sqlContext.sql("""
+SELECT COUNT(*)
+FROM cc JOIN top1m ON ( substring_index(substring_index(uri, '/', 3), '/', -1) = _c1)
+WHERE  has_keyword AND has_checksum AND uri LIKE '%download%'  
+""").show(1000, False)
 
 # ---------------------------
 # -------- HEADERS ----------
@@ -242,57 +279,83 @@ GROUP BY cors
 ORDER BY number DESC
 """).show(20, False)
 
-# ---------------------------
-# --------- TOP1M -----------
-# ---------------------------
-
-
-from selenium import webdriver
-import hashlib
-
-def render(id, url, checksums):
-    driver = webdriver.Chrome()
-    driver.get(url)
-    driver.implicitly_wait(10)
-    element = driver.find_element_by_tag_name('body')
-    element_png = element.screenshot_as_png
-    file = id + ".png"
-    with open(file, "wb") as file:
-        file.write(element_png)
-    driver.quit()
-
-
-sqlContext.sql("""
-SELECT sha1(uri) as id, uri, checksums
-FROM cc 
-WHERE has_checksum = true AND has_keyword = true
-AND uri LIKE '%download%'
-AND substring_index(substring_index(uri, '/', 3), '/', -1) IN (
-    SELECT _c1 as host
-    FROM top1m
-    LIMIT 10000
-)
-LIMIT 10
-""").foreach(lambda r: render(r.id, r.uri, r.checksums))
-
-
-
-sqlContext.sql("""
-SELECT _c0, uri
-FROM cc JOIN top1m ON ( substring_index(substring_index(uri, '/', 3), '/', -1) = _c1)
-WHERE has_checksum = true AND has_keyword = true AND uri LIKE '%download%'
-ORDER BY CAST(_c0 as INT)
-""").show(1000, False)
-
-
 sqlContext.sql("""
 SELECT COUNT(*)
 FROM cc JOIN top1m ON ( substring_index(substring_index(uri, '/', 3), '/', -1) = _c1)
 WHERE has_checksum = true AND has_keyword = true
 """).show(1000, False)
 
+# ---------------------------
+# --------- TOP1M -----------
+# ---------------------------
+
+
+from selenium import webdriver
+
+def render(id, url, checksums):
+    driver = webdriver.Chrome()
+    driver.get(url)
+    driver.implicitly_wait(10)
+    for checksum in checksums:
+        try:
+            element = driver.find_element_by_xpath("//*[contains(text(),'" + checksum + "')]")
+            driver.execute_script("arguments[0].setAttribute('style', arguments[1]);", element, "border: 3px solid red;")
+        except Exception as e:
+            print(str(e))
+    body = driver.find_element_by_tag_name('body')
+    body_png = body.screenshot_as_png
+    file = str(id) + ".png"
+    with open(file, "wb") as file:
+        file.write(body_png)
+    driver.quit()
+
+render('776426eeb4f0752fa3f9750ddaf29f1364bccc84',
+       'https://www.phpbb.com/downloads/?sid=c0325e3272376031d283c19c3d8da7fb',
+       ['7706292fe4b2f7eb988a7b688c29cbe9c8e86f7f51c759c5aab9fc176e695f44'])
+
+render('776426eeb4f0752fa3f9750ddaf29f1364bccc84',
+       'https://www.phpbb.com/downloads/?sid=c0325e3272376031d283c19c3d8da7fb',
+       ['4c50f8657a6f19e73468bac563c1804e112c54c1f700d24803cacc22d080d08b'])
+
+
+render('776426eeb4f0752fa3f9750ddaf29f1364bccc84',
+       'https://www.phpbb.com/downloads/?sid=c0325e3272376031d283c19c3d8da7fb',
+       ['7706292fe4b2f7eb988a7b688c29cbe9c8e86f7f51c759c5aab9fc176e695f44',
+        '4c50f8657a6f19e73468bac563c1804e112c54c1f700d24803cacc22d080d08b'])
+
+sqlContext.sql("""
+SELECT sha1(uri) as id, uri, checksums
+FROM cc JOIN top1m ON ( substring_index(substring_index(uri, '/', 3), '/', -1) = _c1)
+WHERE has_checksum = true AND has_keyword = true AND uri LIKE '%download%'
+ORDER BY CAST(_c0 as INT)
+LIMIT 10
+""").show(3, False)
+#.foreach(lambda r: render(r.id, r.uri, r.checksums))
+
+
+
+sqlContext.sql("""
+SELECT _c0, uri
+FROM cc JOIN top1m ON ( substring_index(substring_index(uri, '/', 3), '/', -1) = _c1)
+WHERE has_checksum = true AND has_keyword = true
+ORDER BY CAST(_c0 as INT)
+""").show(20, False)
+
+sqlContext.sql("""
+SELECT sha1(uri) as id, uri, checksums
+FROM cc JOIN top1m ON ( substring_index(substring_index(uri, '/', 3), '/', -1) = _c1)
+WHERE has_checksum = true AND has_keyword = true AND uri LIKE '%download%'
+ORDER BY CAST(_c0 as INT)
+""").foreach(lambda r: render(r.id, r.uri, r.checksums))
+
+
+sqlContext.sql("""
+SELECT COUNT(*)
+FROM cc JOIN top1m ON ( substring_index(substring_index(uri, '/', 3), '/', -1) = _c1)
+WHERE has_checksum = true AND has_keyword = true
+""").show(20, False)
 
 sqlContext.sql("""
 SELECT count(*)
 FROM cc 
-""").show(100, False)
+""").show(20, False)

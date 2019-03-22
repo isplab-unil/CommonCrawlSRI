@@ -18,7 +18,7 @@ from commoncrawl import CommonCrawl
 
 class CommonCrawlSri(CommonCrawl):
     """
-    A Spark job to analyze the integrity of subresources on CommonCrawl.
+    A Spark job to analyze the sub-resources integrity on CommonCrawl.
     """
 
     name = "CommoncrawlSRI"
@@ -37,49 +37,15 @@ class CommonCrawlSri(CommonCrawl):
             StructField("target", StringType(), True),
             StructField("integrity", StringType(), True),
             StructField("crossorigin", StringType(), True),
-            StructField("referrerpolicy", StringType(), True)
+            StructField("referrerpolicy", StringType(), True),
+            StructField("full", StringType(), True)
         ])), True),
-
-        StructField("has_keyword_filter", BooleanType(), True),
-        StructField("has_keyword", BooleanType(), True),
-        StructField("keywords", ArrayType(StringType()), True),
-
-        StructField("has_checksum_filter", BooleanType(), True),
-        StructField("has_checksum", BooleanType(), True),
-        StructField("checksums", ArrayType(StringType()), True),
 
         StructField("error", StringType(), True),
     ])
 
     def __init__(self):
-        self.subresource_filters = [b"integrity="]
-        self.keywords = ["download"]
-        self.keyword_patterns_bytes = [re.compile(bytes(keyword, "utf-8"), re.IGNORECASE) for keyword in self.keywords]
-        self.keyword_patterns_string = [(keyword, re.compile(str(keyword), re.IGNORECASE)) for keyword in self.keywords]
-        self.checksum_filter = re.compile(b'[a-f0-9]{32}|[A-F0-9]{32}')
-        self.checksum_sizes = [32, 40, 56, 64, 96, 128]
-        self.checksum_pattern = re.compile('(?:(?<!\w)[a-f0-9]{32,128}(?!\w)|(?<!\w)[A-F0-9]{32,128}(?!\w))')
-        self.contains_number = re.compile('[0-9]')
-        self.contains_letter = re.compile('[a-f]|[A-F]')
-
-    def extract_text(self, soup):
-        # remove all javascript and stylesheet code
-        for tag in soup(["head", "style", "script", "noscript"]):
-            tag.extract()
-        return soup.get_text()
-
-    def filter_checksum(self, checksum):
-        if not len(checksum) in self.checksum_sizes:
-            return False
-        if re.search(self.contains_number, checksum) is None:
-            return False
-        if re.search(self.contains_letter, checksum) is None:
-            return False
-        return True
-
-    def extract_checksums(self, text):
-        checksums = [checksum for checksum in self.checksum_pattern.findall(text) if self.filter_checksum(checksum)]
-        return list(set(checksums))
+        self.subresource_filters = b"integrity="
 
     def extract_subresources(self, soup):
         tags = list()
@@ -89,7 +55,8 @@ class CommonCrawlSri(CommonCrawl):
             integrity = tag.get('integrity')
             crossorigin = tag.get('crossorigin')
             referrerpolicy = tag.get('referrerpolicy')
-            tags.append((name, src, integrity, crossorigin, referrerpolicy))
+            full = str(tag)
+            tags.append((name, src, integrity, crossorigin, referrerpolicy, full))
         return tags
 
     def process_record(self, warc_id, record):
@@ -101,22 +68,14 @@ class CommonCrawlSri(CommonCrawl):
             csp = None
             cors = None
 
-            has_subresource_filter = any([subresource_filter in content for subresource_filter in self.subresource_filters])
+            has_subresource_filter = self.subresource_filters in content
             has_subresource = False
             subresources = []
-
-            has_keyword_filter = any([pattern.search(content) is not None for pattern in self.keyword_patterns_bytes])
-            has_keyword = False
-            keywords = []
-
-            has_checksum_filter = self.checksum_filter.search(content) is not None
-            has_checksum = False
-            checksums = []
 
             error = None
 
             # prune records
-            if has_subresource_filter or (has_keyword_filter and has_checksum_filter):
+            if has_subresource_filter:
                 try:
                     # extract http headers
                     csp = record.http_headers.get_header('Content-Security-Policy')
@@ -130,24 +89,16 @@ class CommonCrawlSri(CommonCrawl):
                         subresources = self.extract_subresources(soup)
                         has_subresource = len(subresources) > 0
 
-                    if has_keyword_filter and has_checksum_filter:
-                        text = self.extract_text(soup)
-
-                        keywords = [keyword for (keyword, pattern) in self.keyword_patterns_string if
-                                    pattern.search(text) is not None]
-                        has_keyword = len(keywords) > 0
-
-                        checksums = self.extract_checksums(text)
-                        has_checksum = len(checksums) > 0
-
                 except Exception as e:
                     error = str(e)
 
             yield [warc_id,
-                   uri, csp, cors,
-                   has_subresource_filter, has_subresource, subresources,
-                   has_keyword_filter, has_keyword, keywords,
-                   has_checksum_filter, has_checksum, checksums,
+                   uri,
+                   csp,
+                   cors,
+                   has_subresource_filter,
+                   has_subresource,
+                   subresources,
                    error]
 
 
