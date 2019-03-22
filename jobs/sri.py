@@ -16,7 +16,7 @@ from pyspark.sql.types import StructType, StructField, StringType, ArrayType, Bo
 from commoncrawl import CommonCrawl
 
 
-class CommonCrawlSri(CommonCrawl):
+class Sri(CommonCrawl):
     """
     A Spark job to analyze the sub-resources integrity on CommonCrawl.
     """
@@ -56,7 +56,7 @@ class CommonCrawlSri(CommonCrawl):
             crossorigin = tag.get('crossorigin')
             referrerpolicy = tag.get('referrerpolicy')
             full = str(tag)
-            tags.append((name, src, integrity, crossorigin, referrerpolicy, full))
+            tags.append((name, src, integrity, crossorigin, referrerpolicy, None))
         return tags
 
     def process_record(self, warc_id, record):
@@ -103,5 +103,5 @@ class CommonCrawlSri(CommonCrawl):
 
 
 if __name__ == "__main__":
-    job = CommonCrawlSri()
+    job = Sri()
     job.run()
