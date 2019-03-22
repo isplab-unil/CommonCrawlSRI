@@ -25,7 +25,6 @@ class Download(CommonCrawl):
 
     schema = StructType([
         StructField("warc", IntegerType(), False),
-
         StructField("uri", StringType(), False),
 
         StructField("has_keyword_filter", BooleanType(), True),
@@ -41,9 +40,8 @@ class Download(CommonCrawl):
 
     def __init__(self):
         self.keywords = ["download"]
-        self.keyword_patterns_bytes = [re.compile(bytes(keyword, "utf-8"), re.IGNORECASE) for keyword in self.keywords]
-        self.keyword_patterns_string = [(keyword, re.compile(str(keyword), re.IGNORECASE)) for keyword in self.keywords]
-        self.checksum_filter = re.compile(b'[a-f0-9]{32}|[A-F0-9]{32}')
+        self.keyword_patterns = [(keyword, re.compile(str(keyword), re.IGNORECASE)) for keyword in self.keywords]
+        self.checksum_filter = re.compile('[a-f0-9]{32}|[A-F0-9]{32}')
         self.checksum_sizes = [32, 40, 56, 64, 96, 128]
         self.checksum_pattern = re.compile('(?:(?<!\w)[a-f0-9]{32,128}(?!\w)|(?<!\w)[A-F0-9]{32,128}(?!\w))')
         self.contains_number = re.compile('[0-9]')
@@ -75,7 +73,8 @@ class Download(CommonCrawl):
             uri = record.rec_headers.get_header('WARC-Target-URI')
             content = record.content_stream().read()
 
-            has_keyword_filter = any([pattern.search(content) is not None for pattern in self.keyword_patterns_bytes])
+            has_keyword_filter = any(
+                [pattern.search(content) is not None for (keyword, pattern) in self.keyword_patterns])
             has_keyword = False
             keywords = []
 
@@ -86,22 +85,25 @@ class Download(CommonCrawl):
             error = None
 
             # prune on keywords
-            if  has_keyword_filter:
+            if has_keyword_filter:
                 has_checksum_filter = self.checksum_filter.search(content) is not None
 
                 # prune on checksums
                 if has_checksum_filter:
                     try:
-                        # detect encoding and parse content
-                        encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
-                        soup = BeautifulSoup(content, "lxml", from_encoding=encoding)
-                        text = self.extract_text(soup)
 
-                        keywords = [keyword for (keyword, pattern) in self.keyword_patterns_string if pattern.search(text) is not None]
+                        # detect encoding and parse content
+                        text = record.content
+
+                        # extract keywords
+                        keywords = [keyword for (keyword, pattern) in self.keyword_patterns_string if
+                                    pattern.search(text) is not None]
                         has_keyword = len(keywords) > 0
 
-                        checksums = self.extract_checksums(text)
-                        has_checksum = len(checksums) > 0
+                        if has_keyword:
+                            # extract checksums
+                            checksums = self.extract_checksums(text)
+                            has_checksum = len(checksums) > 0
 
                     except Exception as e:
                         error = str(e)

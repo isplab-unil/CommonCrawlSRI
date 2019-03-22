@@ -14,9 +14,7 @@ import time
 
 from warcio import ArchiveIterator
 
-from commoncrawlsri import CommonCrawlSRI
-
-import cProfile
+from sri import Sri
 
 def parse_arguments():
     """ Returns the parsed arguments from the command line """
@@ -41,7 +39,7 @@ def process_warc(input, limit):
     keywords_count = 0
 
     # mock the behaviour of the processor
-    processor = CommonCrawlSRI()
+    processor = Sri()
     with open(input) as warcs:
         for warc in warcs.read().splitlines():
             with open(warc[5:], 'rb') as stream:
