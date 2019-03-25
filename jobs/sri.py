@@ -37,7 +37,6 @@ class Sri(CommonCrawl):
             StructField("target", StringType(), True),
             StructField("integrity", StringType(), True),
             StructField("crossorigin", StringType(), True),
-            StructField("referrerpolicy", StringType(), True),
             StructField("attributes", MapType(StringType(), StringType()), True),
         ])), True),
 
@@ -58,7 +57,6 @@ class Sri(CommonCrawl):
             src = tag.get('src') or tag.get('href')
             integrity = tag.get('integrity')
             crossorigin = tag.get('crossorigin')
-            referrerpolicy = tag.get('referrerpolicy')
 
             # extract the other attributes as a dictionnary
             attributes = tag.attrs
@@ -70,10 +68,8 @@ class Sri(CommonCrawl):
                 del attributes['integrity']
             if "crossorigin" in attributes:
                 del attributes['crossorigin']
-            if "referrerpolicy" in attributes:
-                del attributes['referrerpolicy']
 
-            tags.append((name, src, integrity, crossorigin, referrerpolicy, attributes))
+            tags.append((name, src, integrity, crossorigin, attributes))
 
         return tags
 
