@@ -59,7 +59,7 @@ class Sri(CommonCrawl):
             tags.append((name, src, integrity, crossorigin, referrerpolicy, None))
         return tags
 
-    def process_record(self, warc_id, record):
+    def process_record(self, warc, record):
         if 'response' == record.rec_type:
 
             # variables initialization
@@ -92,7 +92,7 @@ class Sri(CommonCrawl):
                 except Exception as e:
                     error = str(e)
 
-            yield [warc_id,
+            yield [warc,
                    uri,
                    csp,
                    cors,
