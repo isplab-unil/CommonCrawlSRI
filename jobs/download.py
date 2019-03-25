@@ -19,7 +19,7 @@ class Download(CommonCrawl):
     A Spark job to analyze download pages on CommonCrawl's WET files.
     """
 
-    name = "Download"
+    name = "DownloadsWet"
 
     schema = StructType([
         StructField("warc", IntegerType(), False),
@@ -56,7 +56,7 @@ class Download(CommonCrawl):
             return False
         return True
 
-    def extract_chqecksums(self, text):
+    def extract_checksums(self, text):
         checksums = [checksum for checksum in self.checksum_pattern.findall(text) if self.filter_checksum(checksum)]
         return list(set(checksums))
 
