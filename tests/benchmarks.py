@@ -14,7 +14,7 @@ import time
 
 from warcio import ArchiveIterator
 
-from downloadswet import DownloadsWet
+from download import Download
 
 def parse_arguments():
     """ Returns the parsed arguments from the command line """
@@ -39,7 +39,7 @@ def process_warc(input, limit):
     keywords_count = 0
 
     # mock the behaviour of the processor
-    processor = DownloadsWet()
+    processor = Download()
     with open(input) as warcs:
         for warc in warcs.read().splitlines():
             with open(warc, 'rb') as stream:

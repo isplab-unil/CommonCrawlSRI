@@ -16,9 +16,10 @@ from pyspark.sql.types import StructType, StructField, StringType, ArrayType, Bo
 from commoncrawl import CommonCrawl
 
 
-class DownloadsWarc(CommonCrawl):
+class DownloadWarc(CommonCrawl):
     """
     A Spark job to analyze download pages on CommonCrawl's Warc files.
+    This job requires to parse and extract the content from the HTML.
     """
 
     name = "DownloadWarc"
@@ -114,5 +115,5 @@ class DownloadsWarc(CommonCrawl):
 
 
 if __name__ == "__main__":
-    job = DownloadsWarc()
+    job = DownloadWarc()
     job.run()
