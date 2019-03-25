@@ -1,6 +1,7 @@
 from pyspark.shell import sqlContext
 
 # Load the parquet files
+sqlContext.read.parquet("output-remote/*.parquet").registerTempTable("cc")
 sqlContext.read.parquet("../output-local/*.parquet").registerTempTable("cc")
 
 sqlContext.sql("""
@@ -29,8 +30,4 @@ SELECT cors FROM cc WHERE cors is not NULL
 
 sqlContext.sql("""
 SELECT subresources.crossorigin FROM cc WHERE size(filter(subresources, s -> s.crossorigin IS NOT NULL)) > 0
-""").show(100, False)
-
-sqlContext.sql("""
-SELECT subresources.referrerpolicy FROM cc WHERE size(filter(subresources, s -> s.referrerpolicy IS NOT NULL)) > 0
 """).show(100, False)
