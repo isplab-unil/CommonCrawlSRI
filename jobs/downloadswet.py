@@ -65,6 +65,7 @@ class DownloadsWet(CommonCrawl):
     def process_record(self, warc_id, record):
         # variables initialization
         uri = record.rec_headers.get_header('WARC-Target-URI')
+        content = None
 
         has_keyword_filter = False
         has_keyword = False
@@ -101,10 +102,14 @@ class DownloadsWet(CommonCrawl):
                     except Exception as e:
                         error = str(e)
 
+        if has_checksum == False:
+            content = None
+
         yield [warc_id,
                uri,
                has_keyword_filter, has_keyword, keywords,
                has_checksum_filter, has_checksum, checksums,
+               content,
                error]
 
 
