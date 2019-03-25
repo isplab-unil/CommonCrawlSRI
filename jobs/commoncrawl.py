@@ -45,7 +45,7 @@ class CommonCrawl:
         arg_parser = argparse.ArgumentParser(description=description)
         arg_parser.add_argument("input",
                                 help="Input path")
-        arg_parser.add_argument("output",
+        arg_parser.add_argument("output-remote",
                                 help="Output path")
         arg_parser.add_argument("--partitions",
                                 type=int,
@@ -114,7 +114,7 @@ class CommonCrawl:
             .option("compression", "gzip") \
             .option("path", self.args.output) \
             .mode("overwrite") \
-            .saveAsTable("output")
+            .saveAsTable("output-remote")
 
     def process_warc(self, warc):
         s3pattern = re.compile('^s3://([^/]+)/(.+)')

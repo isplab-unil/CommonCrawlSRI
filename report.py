@@ -2,7 +2,7 @@ from pyspark.shell import sqlContext
 
 sqlContext.read.csv('input/top-1m-cisco.csv').registerTempTable('top1m')
 
-sqlContext.read.parquet("output/*.parquet").registerTempTable("cc")
+sqlContext.read.parquet("output-remote/*.parquet").registerTempTable("cc")
 
 # ---------------------------
 # -------- GENERAL ----------

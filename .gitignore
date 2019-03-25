@@ -112,5 +112,5 @@ spark-warehouse/
 .DS_Store
 metastore_db/
 output-local/
-output/
+output-remote/
 start-remote.sh
