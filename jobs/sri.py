@@ -12,7 +12,7 @@ __email__ = "bertil.chapuis@unil.ch"
 
 from bs4 import BeautifulSoup
 from bs4.dammit import EncodingDetector
-from pyspark.sql.types import StructType, StructField, StringType, ArrayType, BooleanType, IntegerType
+from pyspark.sql.types import StructType, StructField, StringType, ArrayType, BooleanType, IntegerType, MapType
 from commoncrawl import CommonCrawl
 
 
@@ -38,7 +38,7 @@ class Sri(CommonCrawl):
             StructField("integrity", StringType(), True),
             StructField("crossorigin", StringType(), True),
             StructField("referrerpolicy", StringType(), True),
-            StructField("full", StringType(), True)
+            StructField("attributes", MapType(StringType(), StringType()), True),
         ])), True),
 
         StructField("error", StringType(), True),
@@ -49,14 +49,27 @@ class Sri(CommonCrawl):
 
     def extract_subresources(self, soup):
         tags = list()
+
+        # iterate over the sub-resources
         for tag in soup(["link", "script"]):
             name = tag.name
+
+            # extract the main attributes
             src = tag.get('src') or tag.get('href')
             integrity = tag.get('integrity')
             crossorigin = tag.get('crossorigin')
             referrerpolicy = tag.get('referrerpolicy')
-            full = str(tag)
-            tags.append((name, src, integrity, crossorigin, referrerpolicy, None))
+
+            # extract the other attributes as a dictionnary
+            attributes = tag.attrs
+            del (attributes['src'])
+            del (attributes['href'])
+            del (attributes['integrity'])
+            del (attributes['crossorigin'])
+            del (attributes['referrerpolicy'])
+
+            tags.append((name, src, integrity, crossorigin, referrerpolicy, attributes))
+
         return tags
 
     def process_record(self, warc, record):
