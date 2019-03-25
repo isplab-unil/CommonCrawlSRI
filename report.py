@@ -1,6 +1,6 @@
 from pyspark.shell import sqlContext
 
-sqlContext.read.csv('input/top-1m.csv').registerTempTable('top1m')
+sqlContext.read.csv('input/top-1m-cisco.csv').registerTempTable('top1m')
 
 sqlContext.read.parquet("output/*.parquet").registerTempTable("cc")
 
