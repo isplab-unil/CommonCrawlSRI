@@ -10,8 +10,6 @@ __license__ = "MIT"
 __maintainer__ = "Bertil Chapuis"
 __email__ = "bertil.chapuis@unil.ch"
 
-from bs4 import BeautifulSoup
-from bs4.dammit import EncodingDetector
 from pyspark.sql.types import StructType, StructField, StringType, ArrayType, BooleanType, IntegerType
 from commoncrawl import CommonCrawl
 
@@ -25,7 +23,7 @@ class DownloadsWet(CommonCrawl):
 
     schema = StructType([
         StructField("warc", IntegerType(), False),
-        StructField("uri", StringType(), False),
+        StructField("url", StringType(), False),
 
         StructField("has_keyword_filter", BooleanType(), True),
         StructField("has_keyword", BooleanType(), True),
@@ -35,7 +33,7 @@ class DownloadsWet(CommonCrawl):
         StructField("has_checksum", BooleanType(), True),
         StructField("checksums", ArrayType(StringType()), True),
 
-        StructField("content", StringType(), False),
+        StructField("content", StringType(), True),
 
         StructField("error", StringType(), True),
     ])
@@ -58,38 +56,40 @@ class DownloadsWet(CommonCrawl):
             return False
         return True
 
-    def extract_checksums(self, text):
+    def extract_chqecksums(self, text):
         checksums = [checksum for checksum in self.checksum_pattern.findall(text) if self.filter_checksum(checksum)]
         return list(set(checksums))
 
+    @staticmethod
+    def is_wet_text_record(record):
+        """Return true if WARC record is a WET text/plain record"""
+        return (record.rec_type == 'conversion' and
+                record.content_type == 'text/plain' and
+                record.rec_headers.get_header('WARC-Target-URI') is not None)
+
     def process_record(self, warc_id, record):
-        # variables initialization
-        uri = record.rec_headers.get_header('WARC-Target-URI')
-        content = None
+        if self.is_wet_text_record(record):
+            # variables initialization
+            url = record.rec_headers.get_header('WARC-Target-URI')
+            content = record.content_stream().read().decode('utf-8')
 
-        has_keyword_filter = False
-        has_keyword = False
-        keywords = []
+            has_keyword_filter = any([pattern.search(content) is not None for (keyword, pattern) in self.keyword_patterns])
+            has_keyword = False
+            keywords = []
 
-        has_checksum_filter = False
-        has_checksum = False
-        checksums = []
+            has_checksum_filter = False
+            has_checksum = False
+            checksums = []
 
-        error = None
-
-        # prune on URIs
-        if uri is not None:
-            content = record.raw_stream.read().decode("utf-8")
+            error = None
 
             # prune on keywords
-            has_keyword_filter = any([pattern.search(content) is not None for (keyword, pattern) in self.keyword_patterns])
             if has_keyword_filter:
 
                 # prune on checksums
                 has_checksum_filter = self.checksum_filter.search(content) is not None
                 if has_checksum_filter:
                     try:
-
                         # extract keywords
                         keywords = [keyword for (keyword, pattern) in self.keyword_patterns if pattern.search(content) is not None]
                         has_keyword = len(keywords) > 0
@@ -102,15 +102,15 @@ class DownloadsWet(CommonCrawl):
                     except Exception as e:
                         error = str(e)
 
-        if has_checksum == False:
-            content = None
+            if not has_checksum:
+                content = None
 
-        yield [warc_id,
-               uri,
-               has_keyword_filter, has_keyword, keywords,
-               has_checksum_filter, has_checksum, checksums,
-               content,
-               error]
+            yield [warc_id,
+                   url,
+                   has_keyword_filter, has_keyword, keywords,
+                   has_checksum_filter, has_checksum, checksums,
+                   content,
+                   error]
 
 
 if __name__ == "__main__":
