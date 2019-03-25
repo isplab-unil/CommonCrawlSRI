@@ -26,7 +26,7 @@ class Sri(CommonCrawl):
     schema = StructType([
         StructField("warc", IntegerType(), False),
 
-        StructField("uri", StringType(), False),
+        StructField("url", StringType(), False),
         StructField("csp", StringType(), True),
         StructField("cors", StringType(), True),
 
@@ -62,11 +62,16 @@ class Sri(CommonCrawl):
 
             # extract the other attributes as a dictionnary
             attributes = tag.attrs
-            del (attributes['src'])
-            del (attributes['href'])
-            del (attributes['integrity'])
-            del (attributes['crossorigin'])
-            del (attributes['referrerpolicy'])
+            if "src" in attributes:
+                del attributes['src']
+            if "href" in attributes:
+                del attributes['href']
+            if "integrity" in attributes:
+                del attributes['integrity']
+            if "crossorigin" in attributes:
+                del attributes['crossorigin']
+            if "referrerpolicy" in attributes:
+                del attributes['referrerpolicy']
 
             tags.append((name, src, integrity, crossorigin, referrerpolicy, attributes))
 
@@ -76,7 +81,7 @@ class Sri(CommonCrawl):
         if 'response' == record.rec_type:
 
             # variables initialization
-            uri = record.rec_headers.get_header('WARC-Target-URI')
+            url = record.rec_headers.get_header('WARC-Target-URI')
             content = record.content_stream().read()
             csp = None
             cors = None
@@ -106,7 +111,7 @@ class Sri(CommonCrawl):
                     error = str(e)
 
             yield [warc,
-                   uri,
+                   url,
                    csp,
                    cors,
                    has_subresource_filter,
