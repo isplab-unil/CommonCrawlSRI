@@ -21,7 +21,7 @@ class Sri(CommonCrawl):
     A Spark job to analyze the sub-resources integrity on CommonCrawl.
     """
 
-    name = "CommoncrawlSRI"
+    name = "Sri"
 
     schema = StructType([
         StructField("warc", IntegerType(), False),

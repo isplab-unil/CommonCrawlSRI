@@ -9,12 +9,12 @@ __maintainer__ = "Bertil Chapuis"
 __email__ = "bertil.chapuis@unil.ch"
 
 import argparse
-import git
+#import git
 import time
 
 from warcio import ArchiveIterator
 
-from sri import Sri
+from wet import Wet
 
 def parse_arguments():
     """ Returns the parsed arguments from the command line """
@@ -39,17 +39,17 @@ def process_warc(input, limit):
     keywords_count = 0
 
     # mock the behaviour of the processor
-    processor = Sri()
+    processor = Wet()
     with open(input) as warcs:
         for warc in warcs.read().splitlines():
-            with open(warc[5:], 'rb') as stream:
+            with open(warc, 'rb') as stream:
                 wark_input_processed += 1
                 for record in ArchiveIterator(stream):
                     if (records_processed >= limit):
                         break
                     records_processed += 1
                     try:
-                        for response in processor.process_record(record):
+                        for response in processor.process_record(1, record):
                             response_returned += 1
 
                             if (response[1]):
@@ -64,7 +64,8 @@ def process_warc(input, limit):
                             checksums_counted += len(response[6])
 
                             keywords_count += len(response[7])
-                    except:
+                    except Exception as e:
+                        print(str(e))
                         wark_input_failed += 1
 
     duration = time.time() - start
@@ -83,8 +84,8 @@ def process_warc(input, limit):
     print("keywords_count:         %s" % keywords_count)
 
     # add the git hash to the result
-    repo = git.Repo(search_parent_directories=True)
-    hash = repo.head.object.hexsha
+    #repo = git.Repo(search_parent_directories=True)
+    hash = "hash"#repo.head.object.hexsha
     benchmarkFile = "benchmark-results.csv"
     with open(benchmarkFile, "a+") as csv:
         csv.write("{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12}\n".format(

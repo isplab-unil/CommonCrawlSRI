@@ -16,12 +16,12 @@ from pyspark.sql.types import StructType, StructField, StringType, ArrayType, Bo
 from commoncrawl import CommonCrawl
 
 
-class Download(CommonCrawl):
+class DownloadsWarc(CommonCrawl):
     """
-    A Spark job to analyze the integrity of subresources on CommonCrawl.
+    A Spark job to analyze download pages on CommonCrawl's Warc files.
     """
 
-    name = "CommoncrawlSRI"
+    name = "DownloadWarc"
 
     schema = StructType([
         StructField("warc", IntegerType(), False),
@@ -114,5 +114,5 @@ class Download(CommonCrawl):
 
 
 if __name__ == "__main__":
-    job = Download()
+    job = DownloadsWarc()
     job.run()

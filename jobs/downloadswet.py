@@ -16,12 +16,12 @@ from pyspark.sql.types import StructType, StructField, StringType, ArrayType, Bo
 from commoncrawl import CommonCrawl
 
 
-class Download(CommonCrawl):
+class DownloadsWet(CommonCrawl):
     """
-    A Spark job to analyze the integrity of subresources on CommonCrawl.
+    A Spark job to analyze download pages on CommonCrawl's WET files.
     """
 
-    name = "CommoncrawlSRI"
+    name = "DownloadsWet"
 
     schema = StructType([
         StructField("warc", IntegerType(), False),
@@ -35,6 +35,8 @@ class Download(CommonCrawl):
         StructField("has_checksum", BooleanType(), True),
         StructField("checksums", ArrayType(StringType()), True),
 
+        StructField("content", StringType(), False),
+
         StructField("error", StringType(), True),
     ])
 
@@ -46,12 +48,6 @@ class Download(CommonCrawl):
         self.checksum_pattern = re.compile('(?:(?<!\w)[a-f0-9]{32,128}(?!\w)|(?<!\w)[A-F0-9]{32,128}(?!\w))')
         self.contains_number = re.compile('[0-9]')
         self.contains_letter = re.compile('[a-f]|[A-F]')
-
-    def extract_text(self, soup):
-        # remove all javascript and stylesheet code
-        for tag in soup(["head", "style", "script", "noscript"]):
-            tag.extract()
-        return soup.get_text()
 
     def filter_checksum(self, checksum):
         if not len(checksum) in self.checksum_sizes:
@@ -67,54 +63,51 @@ class Download(CommonCrawl):
         return list(set(checksums))
 
     def process_record(self, warc_id, record):
-        if 'response' == record.rec_type:
+        # variables initialization
+        uri = record.rec_headers.get_header('WARC-Target-URI')
 
-            # variables initialization
-            uri = record.rec_headers.get_header('WARC-Target-URI')
-            content = record.content_stream().read()
+        has_keyword_filter = False
+        has_keyword = False
+        keywords = []
 
-            has_keyword_filter = any(
-                [pattern.search(content) is not None for (keyword, pattern) in self.keyword_patterns])
-            has_keyword = False
-            keywords = []
+        has_checksum_filter = False
+        has_checksum = False
+        checksums = []
 
-            has_checksum_filter = False
-            has_checksum = False
-            checksums = []
+        error = None
 
-            error = None
+        # prune on URIs
+        if uri is not None:
+            content = record.raw_stream.read().decode("utf-8")
 
             # prune on keywords
+            has_keyword_filter = any([pattern.search(content) is not None for (keyword, pattern) in self.keyword_patterns])
             if has_keyword_filter:
-                has_checksum_filter = self.checksum_filter.search(content) is not None
 
                 # prune on checksums
+                has_checksum_filter = self.checksum_filter.search(content) is not None
                 if has_checksum_filter:
                     try:
 
-                        # detect encoding and parse content
-                        text = record.content
-
                         # extract keywords
-                        keywords = [keyword for (keyword, pattern) in self.keyword_patterns_string if
-                                    pattern.search(text) is not None]
+                        keywords = [keyword for (keyword, pattern) in self.keyword_patterns if pattern.search(content) is not None]
                         has_keyword = len(keywords) > 0
-
                         if has_keyword:
+
                             # extract checksums
-                            checksums = self.extract_checksums(text)
+                            checksums = self.extract_checksums(content)
                             has_checksum = len(checksums) > 0
 
                     except Exception as e:
                         error = str(e)
 
-            yield [warc_id,
-                   uri,
-                   has_keyword_filter, has_keyword, keywords,
-                   has_checksum_filter, has_checksum, checksums,
-                   error]
+        yield [warc_id,
+               uri,
+               has_keyword_filter, has_keyword, keywords,
+               has_checksum_filter, has_checksum, checksums,
+               error]
 
 
 if __name__ == "__main__":
-    job = Download()
+    job = DownloadsWet()
     job.run()
