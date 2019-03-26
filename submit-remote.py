@@ -116,6 +116,10 @@ cluster = emr.run_job_flow(
                 'Jar': 'command-runner.jar',
                 'Args': [
                     '/usr/bin/spark-submit',
+                    '--conf',
+                    'spark.yarn.maxAppAttempts=1',
+                    '--conf',
+                    'spark.yarn.executor.memoryOverhead=1000',
                     '--py-files',
                     's3://%s/jobs/commoncrawl.py' % name,
                     '--deploy-mode',
