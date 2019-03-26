@@ -214,6 +214,27 @@ WHERE has_subresource = true
 GROUP BY hash
 """).show(20, False)
 
+sqlContext.sql("""
+SELECT 
+    cc.uri,
+    sri.integrity
+FROM cc LATERAL VIEW explode(subresources) T AS sri
+WHERE has_subresource = true 
+  AND sri.integrity IS NOT NULL
+  AND sri.integrity LIKE 'md5%'
+""").show(100, False)
+
+
+sqlContext.sql("""
+SELECT 
+    cc.uri,
+    sri.integrity
+FROM cc LATERAL VIEW explode(subresources) T AS sri
+WHERE has_subresource = true 
+  AND sri.integrity IS NOT NULL
+  AND sri.integrity LIKE ''
+""").show(100, False)
+
 # ---------------------------
 
 # What are the most popular subresources included in pages

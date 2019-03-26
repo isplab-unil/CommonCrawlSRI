@@ -19,7 +19,7 @@ args = parser.parse_args()
 with open('start-remote.sh', 'w') as file:
     file.write("#!/bin/bash\n")
     file.write("./submit-remote.py %s %s %s %s %s %s\n" % (
-    args.job, args.input, args.partitions, args.master, args.core, args.task))
+        args.job, args.input, args.partitions, args.master, args.core, args.task))
 
 # Initialize the job name
 name = '%s-%s-%s-m%s-c%s-t%s-p%s' % (
@@ -119,7 +119,7 @@ cluster = emr.run_job_flow(
                     '--conf',
                     'spark.yarn.maxAppAttempts=1',
                     '--conf',
-                    'spark.yarn.executor.memoryOverhead=1000',
+                    'spark.yarn.max.executor.failures=1000000',
                     '--py-files',
                     's3://%s/jobs/commoncrawl.py' % name,
                     '--deploy-mode',
