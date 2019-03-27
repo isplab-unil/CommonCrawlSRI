@@ -1,7 +1,7 @@
 from pyspark.shell import sqlContext
 
 # Load the parquet files
-sqlContext.read.parquet("output-remote/*.parquet").registerTempTable("cc")
+sqlContext.read.parquet("output-local/*.parquet").registerTempTable("cc")
 sqlContext.read.parquet("../output-local/*.parquet").registerTempTable("cc")
 
 sqlContext.sql("""

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import re
+from typing import List, Any
 
 __author__ = "Bertil Chapuis, Kévin Huguenin, Romain Artru"
 __copyright__ = "Copyright 2019, The Information Security and Privacy Lab at the University of Lausanne (https://www.unil.ch/isplab/)"
@@ -24,18 +25,11 @@ class Download(CommonCrawl):
     schema = StructType([
         StructField("warc", IntegerType(), False),
         StructField("url", StringType(), False),
-
-        StructField("has_keyword_filter", BooleanType(), True),
         StructField("has_keyword", BooleanType(), True),
         StructField("keywords", ArrayType(StringType()), True),
-
-        StructField("has_checksum_filter", BooleanType(), True),
         StructField("has_checksum", BooleanType(), True),
         StructField("checksums", ArrayType(StringType()), True),
-
-        StructField("content", StringType(), True),
-
-        StructField("error", StringType(), True),
+        StructField("content", StringType(), True)
     ])
 
     def __init__(self):
@@ -56,10 +50,6 @@ class Download(CommonCrawl):
             return False
         return True
 
-    def extract_checksums(self, text):
-        checksums = [checksum for checksum in self.checksum_pattern.findall(text) if self.filter_checksum(checksum)]
-        return list(set(checksums))
-
     @staticmethod
     def is_wet_text_record(record):
         """Return true if WARC record is a WET text/plain record"""
@@ -73,44 +63,26 @@ class Download(CommonCrawl):
             url = record.rec_headers.get_header('WARC-Target-URI')
             content = record.content_stream().read().decode('utf-8')
 
-            has_keyword_filter = any([pattern.search(content) is not None for (keyword, pattern) in self.keyword_patterns])
-            has_keyword = False
-            keywords = []
+            keywords = [keyword for (keyword, pattern) in self.keyword_patterns if pattern.search(content) is not None]
+            has_keyword = len(keywords) > 0
 
-            has_checksum_filter = False
-            has_checksum = False
             checksums = []
-
-            error = None
+            has_checksum = False
 
             # prune on keywords
-            if has_keyword_filter:
-
-                # prune on checksums
-                has_checksum_filter = self.checksum_filter.search(content) is not None
-                if has_checksum_filter:
-                    try:
-                        # extract keywords
-                        keywords = [keyword for (keyword, pattern) in self.keyword_patterns if pattern.search(content) is not None]
-                        has_keyword = len(keywords) > 0
-                        if has_keyword:
-
-                            # extract checksums
-                            checksums = self.extract_checksums(content)
-                            has_checksum = len(checksums) > 0
-
-                    except Exception as e:
-                        error = str(e)
+            if has_keyword:
+                # extract checksums
+                checksums = [checksum for checksum in self.checksum_pattern.findall(content) if self.filter_checksum(checksum)]
+                has_checksum = len(checksums) > 0
 
             if not has_checksum:
                 content = None
 
             yield [warc_id,
                    url,
-                   has_keyword_filter, has_keyword, keywords,
-                   has_checksum_filter, has_checksum, checksums,
-                   content,
-                   error]
+                   has_keyword, keywords,
+                   has_checksum, checksums,
+                   content]
 
 
 if __name__ == "__main__":
