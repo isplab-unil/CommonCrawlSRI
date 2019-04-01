@@ -111,6 +111,5 @@ crawl-data/
 spark-warehouse/
 .DS_Store
 metastore_db/
-output-local/
-output-remote/
+output-*/
 start-remote.sh
