@@ -29,6 +29,8 @@ class Sri(CommonCrawl):
         StructField("url", StringType(), False),
         StructField("csp", StringType(), True),
         StructField("cors", StringType(), True),
+        StructField("hsts", StringType(), True),
+        StructField("auth", StringType(), True),
 
         StructField("has_subresource_filter", BooleanType(), True),
         StructField("has_subresource", BooleanType(), True),
@@ -81,6 +83,8 @@ class Sri(CommonCrawl):
             content = record.content_stream().read()
             csp = None
             cors = None
+            hsts = None
+            auth = None
 
             has_subresource_filter = self.subresource_filters in content
             has_subresource = False
@@ -94,6 +98,8 @@ class Sri(CommonCrawl):
                     # extract http headers
                     csp = record.http_headers.get_header('Content-Security-Policy')
                     cors = record.http_headers.get_header('Access-Control-Allow-Origin')
+                    hsts = record.http_headers.get_header('Strict-Transport-Security')
+                    auth = record.http_headers.get_header('WWW-Authenticate')
 
                     # detect encoding and parse content
                     encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
@@ -110,6 +116,8 @@ class Sri(CommonCrawl):
                    url,
                    csp,
                    cors,
+                   hsts,
+                   auth,
                    has_subresource_filter,
                    has_subresource,
                    subresources,
