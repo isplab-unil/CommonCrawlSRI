@@ -6,7 +6,6 @@ from pyspark.shell import sqlContext
 
 # Load the parquet files
 sqlContext.read.parquet("*.parquet").registerTempTable("cc")
-sqlContext.read.csv('../input/top-1m-cisco.csv').registerTempTable('top1m')
 
 
 def sql(sql):
@@ -152,7 +151,7 @@ ORDER BY alg
 # ---------------------------
 
 # Q5: Are there invalid integrity attributes in the dataset?
-sqlContext.sql("""
+csv("05_invalid_sri.csv", """
 SELECT
     cc.url,
     sri.target,
@@ -167,13 +166,13 @@ WHERE sri.integrity IS NOT NULL
   AND length(trim(sri.integrity)) != 95 -- sha512
   AND length(trim(sri.integrity)) != 71 -- sha384
   AND length(trim(sri.integrity)) != 51 -- sha256
-""").show(100, False)
+""")
 
 # ---------------------------
 
 # Q6: What is the distribution of SRI per protocol?
 
-sqlContext.sql("""
+csv("06_sri_per_protocol.csv", """
 SELECT if(sri.target LIKE 'https%', 'https', if(sri.target LIKE 'http%', 'http', if(url LIKE 'https%', 'https', 'http'))) AS protocol, count(*) as sri FROM (
     SELECT url, filter(subresources, s -> s.integrity IS NOT NULL) AS subresources 
     FROM cc 
@@ -181,7 +180,7 @@ SELECT if(sri.target LIKE 'https%', 'https', if(sri.target LIKE 'http%', 'http',
 ) LATERAL VIEW explode(subresources) T AS sri
 GROUP BY protocol
 ORDER BY protocol DESC
-""").show(20, False)
+""")
 
 # ---------------------------
 
@@ -251,16 +250,17 @@ ORDER BY number DESC
 
 # Q9: What is the distribution of the values for the crossorigin attribute?
 
-sqlContext.sql("""
+csv("09_crossorigin_values.csv", """
 SELECT
-    sri.crossorigin,
+    trim(sri.crossorigin),
     count(*)
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.crossorigin IS NOT NULL 
-GROUP BY sri.crossorigin
-""").show(20, False)
+  AND sri.integrity IS NOT NULL
+GROUP BY trim(sri.crossorigin)
+""")
 
-sqlContext.sql("""
+csv("09_crossorigin_use_credentials", """
 SELECT
     cc.url,
     sri.target,
@@ -268,7 +268,7 @@ SELECT
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.crossorigin = 'use-credentials'
   AND substring_index(substring_index(url, '/', 3), '/', -1) != substring_index(substring_index(sri.target, '/', 3), '/', -1)
-""").show(200, False)
+""")
 
 # ---------------------------
 
@@ -277,7 +277,7 @@ WHERE sri.crossorigin = 'use-credentials'
 sqlContext.sql("""
 SELECT count(*)
 FROM cc
-WHERE csp LIKE '%require-sri-for%'
+WHERE csp IS NOT NULL
 """).show(100, False)
 
 # The list of web pages having a cors policy
@@ -286,3 +286,11 @@ SELECT url, cors
 FROM cc
 WHERE cors IS NOT NULL
 """).show(100, False)
+
+
+sqlContext.sql("""
+SELECT auth
+FROM cc
+WHERE auth IS NOT NULL 
+""").show(100, False)
+
