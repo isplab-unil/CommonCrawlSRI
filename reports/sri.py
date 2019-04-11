@@ -5,7 +5,7 @@ from pyspark.shell import sqlContext
 # ---------------------------
 
 # Load the parquet files
-sqlContext.read.parquet("*.parquet").registerTempTable("cc")
+sqlContext.read.parquet("../output-sri/*.parquet").registerTempTable("cc")
 
 
 def sql(sql):
@@ -27,31 +27,31 @@ def csv(file, sql):
 # ----- VERIFICATIONS -------
 # ---------------------------
 
-csv("count.csv", "SELECT count(*) as count FROM cc")
+csv("00_count.csv", "SELECT count(*) as count FROM cc")
 
-sqlContext.sql("""
-SELECT count(*) FROM cc WHERE error is not NULL 
-""").show(20, False)
-
-sqlContext.sql("""
-SELECT count(*) FROM cc WHERE has_subresource
-""").show(20, False)
-
-sqlContext.sql("""
-SELECT subresources.attributes FROM cc WHERE has_subresource
-""").show(20, False)
-
-sqlContext.sql("""
-SELECT csp FROM cc WHERE csp is not NULL 
-""").show(20, False)
-
-sqlContext.sql("""
-SELECT cors FROM cc WHERE cors is not NULL 
-""").show(20, False)
-
-sqlContext.sql("""
-SELECT subresources.crossorigin FROM cc WHERE size(filter(subresources, s -> s.crossorigin IS NOT NULL)) > 0
-""").show(100, False)
+# sqlContext.sql("""
+# SELECT count(*) FROM cc WHERE error is not NULL
+# """).show(20, False)
+#
+# sqlContext.sql("""
+# SELECT count(*) FROM cc WHERE has_subresource
+# """).show(20, False)
+#
+# sqlContext.sql("""
+# SELECT subresources.attributes FROM cc WHERE has_subresource
+# """).show(20, False)
+#
+# sqlContext.sql("""
+# SELECT csp FROM cc WHERE csp is not NULL
+# """).show(20, False)
+#
+# sqlContext.sql("""
+# SELECT cors FROM cc WHERE cors is not NULL
+# """).show(20, False)
+#
+# sqlContext.sql("""
+# SELECT subresources.crossorigin FROM cc WHERE size(filter(subresources, s -> s.crossorigin IS NOT NULL)) > 0
+# """).show(100, False)
 
 # ---------------------------
 # -------- QUERIES ----------
@@ -166,7 +166,7 @@ ORDER BY number DESC
 # ---------------------------
 
 # Q5: Are there invalid integrity attributes in the dataset?
-sql("""
+csv("05_invalid_integrity_attributes.csv", """
 SELECT
     cc.url,
     sri.target,
@@ -213,21 +213,24 @@ lambdas = [
 ]
 
 select = sqlContext.sql("""
-    SELECT 
-        url as url,
-        sri.target as sri
-    FROM cc LATERAL VIEW explode(subresources) T AS sri
-    WHERE sri.integrity IS NOT NULL
-    """).rdd.map(lambda r: (urlparse(r.url), urlparse(urljoin(r.url, r.sri))))
+SELECT 
+    url as url,
+    sri.target as sri
+FROM cc LATERAL VIEW explode(subresources) T AS sri
+WHERE sri.integrity IS NOT NULL
+""").rdd.map(lambda r: (urlparse(r.url), urlparse(urljoin(r.url, r.sri))))
+
+number = select.count()
 
 with open("07_elements_per_protocol.csv", "w") as file:
     file.write("protocol,elements\n")
     for l in lambdas:
         result = select.filter(l[1]).count()
-        file.write("{}, {}\n".format(l[0], result))
+        file.write("{}, {}, {}\n".format(l[0], result, round(result / number * 100, 2)))
 
-print(select.filter(lambda r: r[0].scheme == 'https' and r[1].scheme == 'http').map(lambda r : (r[0].netloc, r[1].netloc)).take(100))
-
+select.filter(lambda r: r[0].scheme == 'https' and r[1].scheme == 'http').map(lambda r : (r[0].netloc, r[1].netloc)).write.format("csv") \
+        .option("header", "true") \
+        .save("07_dangerous_https_to_http_downgrade.csv")
 
 
 # ---------------------------
@@ -240,7 +243,7 @@ SELECT
     count(*) AS number
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.target IS NOT NULL 
-  AND sri.target LIKE 'http%'
+  AND instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0
   AND sri.integrity IS NOT NULL
 GROUP BY library
 ORDER BY number DESC
@@ -252,11 +255,24 @@ SELECT
     count(*) AS number
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.target IS NOT NULL 
-  AND sri.target LIKE 'http%'
+  AND instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0
   AND sri.integrity IS NOT NULL
 GROUP BY domain
 ORDER BY number DESC
 """)
+
+sql("""
+SELECT 
+    substring_index(substring_index(sri.target, '/', 3), '/', -1) AS domain, 
+    count(*) AS number
+FROM cc LATERAL VIEW explode(subresources) T AS sri
+WHERE sri.target IS NOT NULL 
+  AND instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0
+  AND sri.integrity IS NOT NULL
+GROUP BY domain
+ORDER BY number DESC
+""")
+
 
 # ---------------------------
 
@@ -264,12 +280,17 @@ ORDER BY number DESC
 
 csv("09_crossorigin_values.csv", """
 SELECT
-    trim(sri.crossorigin),
-    count(*)
+    trim(sri.crossorigin) AS value,
+    count(*) AS number,
+    round(100 * count(*) / (
+        SELECT count(*) 
+        FROM cc LATERAL VIEW explode(subresources) T AS sri
+        WHERE sri.crossorigin IS NOT NULL 
+    ), 2) AS percentage  
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.crossorigin IS NOT NULL 
-  AND sri.integrity IS NOT NULL
 GROUP BY trim(sri.crossorigin)
+ORDER BY number DESC
 """)
 
 csv("09_crossorigin_use_credentials", """
@@ -283,6 +304,21 @@ WHERE sri.crossorigin = 'use-credentials'
 """)
 
 # ---------------------------
+
+# Q10: Among the pages that contains SRI, how many of them specify the require-sri-for CSP?
+
+sql("""
+SELECT  
+    count(DISTINCT cc.url) as number,
+    round(100 * count(DISTINCT cc.url) / (
+        SELECT count(DISTINCT cc.url)
+        FROM cc LATERAL VIEW explode(subresources) T AS sri
+        WHERE sri.integrity IS NOT NULL 
+    ), 4) AS percentage  
+FROM cc LATERAL VIEW explode(subresources) T AS sri
+WHERE sri.integrity IS NOT NULL 
+ AND csp LIKE "%require-sri-for%"
+""")
 
 # The list of web pages having a csp policy
 # See: https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP
