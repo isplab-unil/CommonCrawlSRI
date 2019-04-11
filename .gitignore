@@ -113,3 +113,4 @@ spark-warehouse/
 metastore_db/
 output-*/
 start-remote.sh
+logs/
