@@ -29,30 +29,6 @@ def csv(file, sql):
 
 csv("00_count.csv", "SELECT count(*) as count FROM cc")
 
-# sqlContext.sql("""
-# SELECT count(*) FROM cc WHERE error is not NULL
-# """).show(20, False)
-#
-# sqlContext.sql("""
-# SELECT count(*) FROM cc WHERE has_subresource
-# """).show(20, False)
-#
-# sqlContext.sql("""
-# SELECT subresources.attributes FROM cc WHERE has_subresource
-# """).show(20, False)
-#
-# sqlContext.sql("""
-# SELECT csp FROM cc WHERE csp is not NULL
-# """).show(20, False)
-#
-# sqlContext.sql("""
-# SELECT cors FROM cc WHERE cors is not NULL
-# """).show(20, False)
-#
-# sqlContext.sql("""
-# SELECT subresources.crossorigin FROM cc WHERE size(filter(subresources, s -> s.crossorigin IS NOT NULL)) > 0
-# """).show(100, False)
-
 # ---------------------------
 # -------- QUERIES ----------
 # ---------------------------
@@ -261,19 +237,6 @@ GROUP BY domain
 ORDER BY number DESC
 """)
 
-sql("""
-SELECT 
-    substring_index(substring_index(sri.target, '/', 3), '/', -1) AS domain, 
-    count(*) AS number
-FROM cc LATERAL VIEW explode(subresources) T AS sri
-WHERE sri.target IS NOT NULL 
-  AND instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0
-  AND sri.integrity IS NOT NULL
-GROUP BY domain
-ORDER BY number DESC
-""")
-
-
 # ---------------------------
 
 # Q9: What is the distribution of the values for the crossorigin attribute?
@@ -293,7 +256,7 @@ GROUP BY trim(sri.crossorigin)
 ORDER BY number DESC
 """)
 
-csv("09_crossorigin_use_credentials", """
+csv("09_crossorigin_use_credentials.csv", """
 SELECT
     cc.url,
     sri.target,
@@ -307,7 +270,7 @@ WHERE sri.crossorigin = 'use-credentials'
 
 # Q10: Among the pages that contains SRI, how many of them specify the require-sri-for CSP?
 
-sql("""
+csv("10_require_sri_for.csv", """"
 SELECT  
     count(DISTINCT cc.url) as number,
     round(100 * count(DISTINCT cc.url) / (
@@ -316,29 +279,7 @@ SELECT
         WHERE sri.integrity IS NOT NULL 
     ), 4) AS percentage  
 FROM cc LATERAL VIEW explode(subresources) T AS sri
-WHERE sri.integrity IS NOT NULL 
- AND csp LIKE "%require-sri-for%"
+WHERE sri.integrity IS NOT NULL AND csp LIKE "%require-sri-for%"
 """)
 
-# The list of web pages having a csp policy
-# See: https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP
-sqlContext.sql("""
-SELECT count(*)
-FROM cc
-WHERE csp IS NOT NULL
-""").show(100, False)
-
-# The list of web pages having a cors policy
-sqlContext.sql("""
-SELECT url, cors
-FROM cc
-WHERE cors IS NOT NULL
-""").show(100, False)
-
-
-sqlContext.sql("""
-SELECT auth
-FROM cc
-WHERE auth IS NOT NULL 
-""").show(100, False)
 
