@@ -1,36 +1,133 @@
 from pyspark.shell import sqlContext
 
 # Load the parquet files
-sqlContext.read.parquet("*.parquet").registerTempTable("cc")
+sqlContext.read.parquet("../output-download/*.parquet").registerTempTable("cc")
 sqlContext.read.csv('../input/top-1m-cisco.csv').registerTempTable('top1m')
 
+
+def sql(sql):
+    sqlContext \
+        .sql(sql) \
+        .show(20, False)
+
+
+def csv(file, sql):
+    sqlContext \
+        .sql(sql) \
+        .repartition(1) \
+        .write.format("csv") \
+        .option("header", "true") \
+        .save(file)
+
+
 # ---------------------------
-# ----- VERIFICATIONS -------
+# --------- QUERIES ---------
 # ---------------------------
 
-sqlContext.sql("""
+csv("00_page_count.csv", """
 SELECT count(*) FROM cc
-""").show(20, False)
+""")
 
-sqlContext.sql("""
+sql("00_checksum_count.csv", """
+SELECT 
+    count(*)
+FROM cc LATERAL VIEW explode(checksums) T AS checksum
+WHERE has_checksum 
+""")
+
+csv("00_has_keyword_count.csv", """
 SELECT count(*) FROM cc WHERE has_keyword
-""").show(20, False)
+""")
 
-sqlContext.sql("""
+csv("00_has_keyword_and_checksum_count.csv", """
 SELECT count(*) FROM cc WHERE has_checksum
-""").show(20, False)
+""")
 
-sqlContext.sql("""
-SELECT url, checksums FROM cc WHERE has_checksum
-""").show(100, False)
+csv("01_pages_per_checksums.csv", """
+SELECT 
+    size(checksums) as number, 
+    count(*) as count
+FROM cc 
+WHERE has_checksum
+GROUP BY number
+ORDER BY number
+""")
 
-sqlContext.sql("""
-SELECT url, checksums, keywords FROM cc WHERE has_checksum
-""").show(1, False)
+sql("""
+SELECT 
+    length(checksum),
+    count(*)
+FROM cc LATERAL VIEW explode(checksums) T AS checksum
+WHERE has_checksum 
+GROUP BY length(checksum)
+""")
 
-sqlContext.sql("""
-SELECT count(DISTINCT warc) AS number FROM cc
-""").show(20, False)
+sql("""
+SELECT 
+    length(checksum),
+    count(*)
+FROM cc LATERAL VIEW explode(checksums) T AS checksum
+WHERE has_checksum AND (
+    lower(content) LIKE '%md5%' OR
+    lower(content) LIKE '%sha1%' OR lower(content) LIKE '%sha-1%' OR
+    lower(content) LIKE '%sha224%' OR lower(content) LIKE '%sha-224%' OR
+    lower(content) LIKE '%sha256%' OR lower(content) LIKE '%sha-256%' OR
+    lower(content) LIKE '%sha384%' OR lower(content) LIKE '%sha-384%' OR
+    lower(content) LIKE '%sha512%' OR lower(content) LIKE '%sha-512%' 
+)
+GROUP BY length(checksum)
+""")
+
+sql("""
+SELECT url
+FROM cc
+WHERE has_checksum AND (
+    lower(content) LIKE '%md5%' OR 
+    lower(content) LIKE '%sha1%' OR lower(content) LIKE '%sha-1%' OR
+    lower(content) LIKE '%sha224%' OR lower(content) LIKE '%sha-224%' OR
+    lower(content) LIKE '%sha256%' OR lower(content) LIKE '%sha-256%' OR
+    lower(content) LIKE '%sha384%' OR lower(content) LIKE '%sha-384%' OR
+    lower(content) LIKE '%sha512%' OR lower(content) LIKE '%sha-512%' 
+)
+""")
+
+sql("""
+SELECT url, checksum
+FROM cc LATERAL VIEW explode(checksums) T AS checksum
+WHERE has_checksum AND length(checksum) = 32 AND lower(content) LIKE '%md5%'
+""")
+
+sql("""
+SELECT url, checksum
+FROM cc LATERAL VIEW explode(checksums) T AS checksum
+WHERE has_checksum AND length(checksum) = 40 AND (lower(content) LIKE '%sha1%' OR lower(content) LIKE '%sha-1%')
+""")
+
+sql("""
+SELECT url, checksum
+FROM cc LATERAL VIEW explode(checksums) T AS checksum
+WHERE has_checksum AND length(checksum) = 56 AND (lower(content) LIKE '%sha224%' OR lower(content) LIKE '%sha-224%')
+""")
+
+sql("""
+SELECT url, checksum
+FROM cc LATERAL VIEW explode(checksums) T AS checksum
+WHERE has_checksum AND length(checksum) = 64 AND (lower(content) LIKE '%sha256%' OR lower(content) LIKE '%sha-256%')
+""")
+
+sql("""
+SELECT url, checksum
+FROM cc LATERAL VIEW explode(checksums) T AS checksum
+WHERE has_checksum AND length(checksum) = 96 AND (lower(content) LIKE '%sha384%' OR lower(content) LIKE '%sha-384%')
+""")
+
+sql("""
+SELECT url, checksum
+FROM cc LATERAL VIEW explode(checksums) T AS checksum
+WHERE has_checksum AND length(checksum) = 128 AND (lower(content) LIKE '%sha512%' OR lower(content) LIKE '%sha-512%')
+""")
+
+
 
 # ---------------------------
 # ------- QUERIES ---------
@@ -73,6 +170,8 @@ SELECT COUNT(*)
 FROM cc JOIN top1m ON ( substring_index(substring_index(url, '/', 3), '/', -1) = _c1)
 WHERE has_checksum = true AND has_keyword = true
 """).show(20, False)
+
+
 
 
 # ---------------------------
