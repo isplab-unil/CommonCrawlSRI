@@ -1,7 +1,0 @@
-- Verifier encodage du column store
-- Argparse: choice et type pour vérifier les arguments
-- Traiter les fichier http
-- Vérifier la fonction extract_subresources: tag.get('src') or tag.get('href')
-- Append des balises body
-- extract checksub: enlever la compréhension for
-- réflechir à la liste de keywords
