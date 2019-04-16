@@ -72,14 +72,14 @@ cluster = emr.run_job_flow(
                 'InstanceType': 'm5.xlarge',
                 'InstanceCount': args.core,
             },
-            {
-                'Name': 'Task Nodes',  # The task nodes are only used to compute results
-                'Market': 'SPOT',  # The spot instance are ephemeral and should not be used to persist data
-                'BidPrice': str(args.bid_price),  # The bid price can be guessed using the ec2 console
-                'InstanceRole': 'TASK',
-                'InstanceType': 'm5.xlarge',
-                'InstanceCount': args.task,
-            }
+            #{
+            #    'Name': 'Task Nodes',  # The task nodes are only used to compute results
+            #    'Market': 'SPOT',  # The spot instance are ephemeral and should not be used to persist data
+            #    'BidPrice': str(args.bid_price),  # The bid price can be guessed using the ec2 console
+            #    'InstanceRole': 'TASK',
+            #    'InstanceType': 'm5.xlarge',
+            #    'InstanceCount': args.task,
+            #}
         ],
         'Ec2KeyName': 'commoncrawl-sri',  # A key pair must be created from the ec2 console
         'KeepJobFlowAliveWhenNoSteps': False,  # Shutdown the cluster after the execution of the job

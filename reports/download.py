@@ -1,8 +1,8 @@
 from pyspark.shell import sqlContext
 
 # Load the parquet files
-sqlContext.read.parquet("../output-download/*.parquet").registerTempTable("cc")
-sqlContext.read.csv('../input/top-1m-cisco.csv').registerTempTable('top1m')
+sqlContext.read.parquet("../download/*.parquet").registerTempTable("cc")
+sqlContext.read.csv('../top1m/top-1m-cisco.csv').registerTempTable('top1m')
 
 
 def sql(sql):
@@ -62,6 +62,9 @@ WHERE has_checksum
 GROUP BY length(checksum)
 """)
 
+
+# -
+
 sql("""
 SELECT 
     length(checksum),
@@ -76,19 +79,6 @@ WHERE has_checksum AND (
     lower(content) LIKE '%sha512%' OR lower(content) LIKE '%sha-512%' 
 )
 GROUP BY length(checksum)
-""")
-
-sql("""
-SELECT url
-FROM cc
-WHERE has_checksum AND (
-    lower(content) LIKE '%md5%' OR 
-    lower(content) LIKE '%sha1%' OR lower(content) LIKE '%sha-1%' OR
-    lower(content) LIKE '%sha224%' OR lower(content) LIKE '%sha-224%' OR
-    lower(content) LIKE '%sha256%' OR lower(content) LIKE '%sha-256%' OR
-    lower(content) LIKE '%sha384%' OR lower(content) LIKE '%sha-384%' OR
-    lower(content) LIKE '%sha512%' OR lower(content) LIKE '%sha-512%' 
-)
 """)
 
 sql("""
@@ -126,6 +116,33 @@ SELECT url, checksum
 FROM cc LATERAL VIEW explode(checksums) T AS checksum
 WHERE has_checksum AND length(checksum) = 128 AND (lower(content) LIKE '%sha512%' OR lower(content) LIKE '%sha-512%')
 """)
+
+
+
+csv("top-download-pages.csv", """
+SELECT 
+    _c0 as rank, _c1 as host, url as url
+FROM cc
+JOIN top1m ON (substring_index(substring_index(url, '/', 3), '/', -1) = _c1)
+WHERE has_checksum AND (
+    lower(content) LIKE '%md5%' OR
+    lower(content) LIKE '%sha1%' OR lower(content) LIKE '%sha-1%' OR
+    lower(content) LIKE '%sha224%' OR lower(content) LIKE '%sha-224%' OR
+    lower(content) LIKE '%sha256%' OR lower(content) LIKE '%sha-256%' OR
+    lower(content) LIKE '%sha384%' OR lower(content) LIKE '%sha-384%' OR
+    lower(content) LIKE '%sha512%' OR lower(content) LIKE '%sha-512%' 
+)
+""")
+
+csv("top-download-urls.csv", """
+SELECT 
+    _c0 as rank, _c1 as host, url as url
+FROM cc
+JOIN top1m ON (substring_index(substring_index(url, '/', 3), '/', -1) = _c1)
+WHERE url LIKE '%download%'
+ORDER BY _c0 ASC
+""")
+
 
 
 
@@ -170,9 +187,6 @@ SELECT COUNT(*)
 FROM cc JOIN top1m ON ( substring_index(substring_index(url, '/', 3), '/', -1) = _c1)
 WHERE has_checksum = true AND has_keyword = true
 """).show(20, False)
-
-
-
 
 # ---------------------------
 # --------- TOP1M -----------
@@ -243,4 +257,8 @@ FROM cc JOIN top1m ON ( substring_index(substring_index(url, '/', 3), '/', -1) =
 WHERE has_checksum = true AND has_keyword = true
 """).show(20, False)
 
+
+sql("""
+SELECT * FROM top1m
+""")
 

@@ -5,7 +5,7 @@ from pyspark.shell import sqlContext
 # ---------------------------
 
 # Load the parquet files
-sqlContext.read.parquet("../output-sri/*.parquet").registerTempTable("cc")
+sqlContext.read.parquet("../data/*.parquet").registerTempTable("cc")
 
 
 def sql(sql):
@@ -204,7 +204,7 @@ with open("07_elements_per_protocol.csv", "w") as file:
         result = select.filter(l[1]).count()
         file.write("{}, {}, {}\n".format(l[0], result, round(result / number * 100, 2)))
 
-select.filter(lambda r: r[0].scheme == 'https' and r[1].scheme == 'http').map(lambda r : (r[0].netloc, r[1].netloc)).write.format("csv") \
+select.filter(lambda r: r[0].scheme == 'https' and r[1].scheme == 'http').map(lambda r : (r[0].netloc, r[1].netloc)).coalesce(1).toDF().write.format("csv") \
         .option("header", "true") \
         .save("07_dangerous_https_to_http_downgrade.csv")
 
@@ -270,7 +270,7 @@ WHERE sri.crossorigin = 'use-credentials'
 
 # Q10: Among the pages that contains SRI, how many of them specify the require-sri-for CSP?
 
-csv("10_require_sri_for.csv", """"
+csv("10_require_sri_for.csv", """
 SELECT  
     count(DISTINCT cc.url) as number,
     round(100 * count(DISTINCT cc.url) / (
@@ -281,5 +281,6 @@ SELECT
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.integrity IS NOT NULL AND csp LIKE "%require-sri-for%"
 """)
+
 
 
