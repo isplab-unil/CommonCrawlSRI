@@ -38,6 +38,7 @@ HTML = """
 checksum_filter1 = re.compile(b'[a-f0-9]{32}|[A-F0-9]{32}')
 checksum_filter2 = re.compile(b'(?:([a-f0-9]{32})|([A-F0-9]{32}))')
 
+
 class CommonCrawlSRITests(unittest.TestCase):
 
     def test_extract_text(self):
@@ -56,12 +57,6 @@ class CommonCrawlSRITests(unittest.TestCase):
         re.search(HTML)
         re.search(checksum_filter1, HTML)
 
-    # def test_extract_checksums(self):
-    #     soup = BeautifulSoup(HTML, "lxml")
-    #     text = Checksums().extract_text(soup)
-    #     checksums = Checksums().extract_checksums(text)
-    #     self.assertTrue(CHECKSUM1 in checksums)
-    #     self.assertTrue(CHECKSUM2 in checksums)
 
 if __name__ == '__main__':
     unittest.main()
