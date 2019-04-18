@@ -35,8 +35,3 @@ for data_type in warc wat wet; do
 		>input/all_${data_type}_$CRAWL.txt
 
 done
-
-wget https://commoncrawl.s3.amazonaws.com/crawl-data/CC-MAIN-2018-09/wet.paths.gz \
-    && gzip -dc wet.paths.gz | sed 's@^@s3://commoncrawl/@' \
-	> wet-all.txt
-head -n 10 warc-all.txt > wark-10.txt
