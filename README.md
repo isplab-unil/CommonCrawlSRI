@@ -4,7 +4,7 @@ This project aims at measuring the adoption of SRI by analysing the CommonCrawl 
 
 ## Compatibility and Requirements
 
-Tested with OpenJDK 1.8, Spark 2.4.0 and Python 3.7.
+Tested with OpenJDK 1.8, Spark 2.4.0, Python 3.6 and Python 3.7.
 
 ## Setup
 
