@@ -123,3 +123,13 @@ AWS Secret Access Key [None]: xxxxxxxxxxxxxx
 Default region name [None]: us-east-1
 Default output format [None]:
 ```
+
+## Download data
+
+```
+wget https://commoncrawl.s3.amazonaws.com/crawl-data/CC-MAIN-2019-09/wet.paths.gz \
+    && gzip -dc wet.paths.gz | sed 's@^@s3://commoncrawl/@' \
+	> input/2019-09-wet.txt 
+```
+
+
