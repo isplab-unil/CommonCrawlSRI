@@ -124,7 +124,7 @@ class CommonCrawl:
         no_sign_request = botocore.client.Config(signature_version=botocore.UNSIGNED)
         s3client = boto3.client('s3', config=no_sign_request)
 
-        warc_id = int(re.findall(r'-(\d{5})\.', warc)[0])
+        warc_id = int(re.findall(r'-(\d{5})[\.|-]', warc)[0])
 
         self.warc_input_processed.add(1)
         if warc.startswith('s3://'):

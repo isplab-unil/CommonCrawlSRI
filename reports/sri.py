@@ -203,7 +203,7 @@ with open("07_elements_per_protocol.csv", "w") as file:
     for l in lambdas:
         result = select.filter(l[1]).count()
         file.write("{}, {}, {}\n".format(l[0], result, round(result / number * 100, 2)))
-
+j
 select.filter(lambda r: r[0].scheme == 'https' and r[1].scheme == 'http').map(lambda r : (r[0].netloc, r[1].netloc)).coalesce(1).toDF().write.format("csv") \
         .option("header", "true") \
         .save("07_dangerous_https_to_http_downgrade.csv")
