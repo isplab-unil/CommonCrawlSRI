@@ -5,7 +5,7 @@ from pyspark.shell import sqlContext
 # ---------------------------
 
 # Load the parquet files
-sqlContext.read.parquet("../data/*.parquet").registerTempTable("cc")
+sqlContext.read.parquet("../output/*.parquet").registerTempTable("cc")
 
 
 def sql(sql):
@@ -19,6 +19,7 @@ def csv(file, sql):
         .sql(sql) \
         .repartition(1) \
         .write.format("csv") \
+        .option("quoteAll", "true") \
         .option("header", "true") \
         .save(file)
 
@@ -203,7 +204,7 @@ with open("07_elements_per_protocol.csv", "w") as file:
     for l in lambdas:
         result = select.filter(l[1]).count()
         file.write("{}, {}, {}\n".format(l[0], result, round(result / number * 100, 2)))
-j
+
 select.filter(lambda r: r[0].scheme == 'https' and r[1].scheme == 'http').map(lambda r : (r[0].netloc, r[1].netloc)).coalesce(1).toDF().write.format("csv") \
         .option("header", "true") \
         .save("07_dangerous_https_to_http_downgrade.csv")
@@ -216,7 +217,14 @@ select.filter(lambda r: r[0].scheme == 'https' and r[1].scheme == 'http').map(la
 csv("08_topk_sri_url.csv", """
 SELECT 
     substr(sri.target, instr(sri.target, '//') + 2) AS library, 
-    count(*) AS number
+    count(*) AS number,
+    round(100 * count(*) / (
+        SELECT count(*) 
+        FROM cc LATERAL VIEW explode(subresources) T AS sri
+        WHERE sri.target IS NOT NULL 
+        AND instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0
+        AND sri.integrity IS NOT NULL
+    ), 2) AS percentage 
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.target IS NOT NULL 
   AND instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0
@@ -228,7 +236,14 @@ ORDER BY number DESC
 csv("08_topk_sri_domain.csv", """
 SELECT 
     substring_index(substring_index(sri.target, '/', 3), '/', -1) AS domain, 
-    count(*) AS number
+    count(*) AS number,
+    round(100 * count(*) / (
+        SELECT count(*) 
+        FROM cc LATERAL VIEW explode(subresources) T AS sri
+        WHERE sri.target IS NOT NULL 
+        AND instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0
+        AND sri.integrity IS NOT NULL
+    ), 2) AS percentage 
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.target IS NOT NULL 
   AND instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0
