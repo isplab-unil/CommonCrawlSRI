@@ -85,10 +85,10 @@ SELECT
     size(filter(subresources, s -> s.integrity IS NOT NULL)) AS sri, 
     count(*) AS number,
     round(100 * count(*) / (
-        SELECT count(*) 
+        SELECT count(*)
         FROM cc
         WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
-    ), 2) AS percentage 
+    ), 2) AS percentage
 FROM cc 
 WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0 
 GROUP BY sri 
@@ -100,10 +100,10 @@ SELECT
     size(filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL)) AS sri, 
     count(*) AS number,
     round(100 * count(*) / (
-        SELECT count(*) 
-        FROM cc 
-        WHERE size(filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL)) > 0 
-    ), 2) AS percentage  
+        SELECT count(*)
+        FROM cc
+        WHERE size(filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL)) > 0
+    ), 2) AS percentage
 FROM cc 
 WHERE size(filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL)) > 0 
 GROUP BY sri 
@@ -113,8 +113,12 @@ ORDER BY sri ASC
 csv("03_page_per_sri_link.csv", """
 SELECT 
     size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NULL)) AS sri, 
-    count(*) AS total,
-    round(100 * count(*) / (SELECT count(*) FROM cc), 2) AS percentage  
+    count(*) AS number,
+    round(100 * count(*) / (
+        SELECT count(*)
+        FROM cc
+        WHERE size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NULL)) > 0
+    ), 2) AS percentage
 FROM cc 
 WHERE size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NULL)) > 0 
 GROUP BY sri 
@@ -128,11 +132,7 @@ ORDER BY sri ASC
 csv("04_sri_per_alg.csv", """
 SELECT 
     substring_index(trim(hash), '-', 1) as alg, 
-    count(*) as number,
-    round(100 * count(*) / (
-        SELECT count(*) 
-        FROM cc LATERAL VIEW explode(subresources) T AS sri LATERAL VIEW explode(split(sri.integrity, ' ')) AS hash
-    ), 2) AS percentage  
+    count(*) as number
 FROM cc LATERAL VIEW explode(subresources) T AS sri LATERAL VIEW explode(split(sri.integrity, ' ')) AS hash
 WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
   AND sri.integrity IS NOT NULL
@@ -295,6 +295,19 @@ SELECT
     ), 4) AS percentage  
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.integrity IS NOT NULL AND csp LIKE "%require-sri-for%"
+""")
+
+# Q11: Top-k urls and domains among sri
+
+csv("11_topk_no_sri_url_d.csv", """
+SELECT 
+    substr(sri.target, instr(sri.target, '//') + 2) AS library, 
+    count(*) AS number
+FROM cc LATERAL VIEW explode(subresources) T AS sri
+WHERE sri.target IS NOT NULL 
+  AND sri.integrity IS NULL
+GROUP BY library
+ORDER BY number DESC
 """)
 
 
