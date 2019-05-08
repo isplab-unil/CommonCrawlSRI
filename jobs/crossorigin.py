@@ -32,7 +32,6 @@ class Crossorigin(CommonCrawl):
         StructField("subresources", ArrayType(StructType([
             StructField("name", StringType(), True),
             StructField("target", StringType(), True),
-            StructField("integrity", StringType(), True),
             StructField("crossorigin", StringType(), True),
             StructField("attributes", MapType(StringType(), StringType()), True),
         ])), True),
@@ -46,12 +45,11 @@ class Crossorigin(CommonCrawl):
         tags = list()
 
         # iterate over the sub-resources
-        for tag in soup(["link", "script"]):
+        for tag in soup.findAll("",{"crossorigin":"use-credentials"}):
             name = tag.name
 
             # extract the main attributes
-            src = tag.get('src') or tag.get('href')
-            integrity = tag.get('integrity')
+            target = tag.get('src') or tag.get('href')
             crossorigin = tag.get('crossorigin')
 
             # extract the other attributes as a dictionnary
@@ -60,12 +58,10 @@ class Crossorigin(CommonCrawl):
                 del attributes['src']
             if "href" in attributes:
                 del attributes['href']
-            if "integrity" in attributes:
-                del attributes['integrity']
             if "crossorigin" in attributes:
                 del attributes['crossorigin']
 
-            tags.append((name, src, integrity, crossorigin, attributes))
+            tags.append((name, target, crossorigin, attributes))
 
         return tags
 
@@ -108,5 +104,5 @@ class Crossorigin(CommonCrawl):
 
 
 if __name__ == "__main__":
-    job = Sri()
+    job = Crossorigin()
     job.run()
