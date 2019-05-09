@@ -8,27 +8,19 @@ from pyspark.shell import sqlContext
 sqlContext.read.parquet("../output/*.parquet").registerTempTable("cc")
 
 
-def sql(sql):
-    sqlContext \
-        .sql(sql) \
-        .show(20, False)
+# ---------------------------
+# ------ UTILITIES ----------
+# ---------------------------
 
-
-def csv(file, sql):
-    sqlContext \
-        .sql(sql) \
-        .repartition(1) \
-        .write.format("csv") \
-        .option("quoteAll", "true") \
-        .option("header", "true") \
-        .save(file)
+def saveResults(name, sql):
+    sqlContext.sql(sql).repartition(1).write.mode('overwrite').parquet(name)
 
 
 # ---------------------------
 # ----- VERIFICATIONS -------
 # ---------------------------
 
-csv("00_count.csv", "SELECT count(*) as count FROM cc")
+saveResults("00_count.csv", "SELECT count(*) as count FROM cc")
 
 # ---------------------------
 # -------- QUERIES ----------
@@ -36,7 +28,7 @@ csv("00_count.csv", "SELECT count(*) as count FROM cc")
 
 # Q1: What is the number of pages by protocol?
 
-csv("01_pages_per_protocol.csv", """
+saveResults("01_pages_per_protocol", """
 SELECT 
     if(url LIKE 'https%', 'https', if(url LIKE 'http%', 'http', 'other')) AS protocol, 
     count(*) AS number,
@@ -50,7 +42,7 @@ GROUP BY protocol
 
 # Q2: What is the number of pages that include at least one SRI?
 
-csv("02_pages_with_sri.csv", """
+saveResults("02_pages_with_sri", """
 SELECT 
     count(*) AS number,
     (SELECT count(*) FROM cc) AS total,
@@ -59,7 +51,7 @@ FROM cc
 WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
 """)
 
-csv("02_pages_with_sri_script.csv", """
+saveResults("02_pages_with_sri_script", """
 SELECT 
     count(*) AS number,
     (SELECT count(*) FROM cc) AS total,
@@ -68,7 +60,7 @@ FROM cc
 WHERE size(filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL)) > 0
 """)
 
-csv("02_pages_with_sri_link.csv", """
+saveResults("02_pages_with_sri_link", """
 SELECT 
     count(*) AS number,
     (SELECT count(*) FROM cc) AS total,
@@ -80,7 +72,7 @@ WHERE size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NUL
 # ---------------------------
 
 # Q3: What is the number of pages per number of number SRI?
-csv("03_page_per_sri.csv", """
+saveResults("03_page_per_sri", """
 SELECT 
     size(filter(subresources, s -> s.integrity IS NOT NULL)) AS sri, 
     count(*) AS number,
@@ -95,7 +87,7 @@ GROUP BY sri
 ORDER BY sri ASC
 """)
 
-csv("03_page_per_sri_script.csv", """
+saveResults("03_page_per_sri_script", """
 SELECT 
     size(filter(subresources, s -> s.name == 'script' AND s.integrity IS NOT NULL)) AS sri, 
     count(*) AS number,
@@ -110,7 +102,7 @@ GROUP BY sri
 ORDER BY sri ASC
 """)
 
-csv("03_page_per_sri_link.csv", """
+saveResults("03_page_per_sri_link", """
 SELECT 
     size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NULL)) AS sri, 
     count(*) AS number,
@@ -129,7 +121,7 @@ ORDER BY sri ASC
 
 # Q4: What is the number of SRI per hash algorithm?
 
-csv("04_sri_per_alg.csv", """
+saveResults("04_sri_per_alg", """
 SELECT 
     substring_index(trim(hash), '-', 1) as alg, 
     count(*) as number
@@ -143,7 +135,7 @@ ORDER BY number DESC
 # ---------------------------
 
 # Q5: Are there invalid integrity attributes in the dataset?
-csv("05_invalid_integrity_attributes.csv", """
+saveResults("05_invalid_integrity_attributes", """
 SELECT
     cc.url,
     sri.target,
@@ -161,7 +153,7 @@ WHERE hash IS NOT NULL
 
 # Q6: What is the distribution of SRI per protocol?
 
-csv("06_sri_per_protocol.csv", """
+saveResults("06_sri_per_protocol", """
 SELECT if(sri.target LIKE 'https%', 'https', if(sri.target LIKE 'http%', 'http', if(url LIKE 'https%', 'https', 'http'))) AS protocol, count(*) as sri FROM (
     SELECT url, filter(subresources, s -> s.integrity IS NOT NULL) AS subresources 
     FROM cc 
@@ -177,17 +169,7 @@ ORDER BY protocol DESC
 
 from urllib.parse import urljoin
 from urllib.parse import urlparse
-
-lambdas = [
-    ('http_http_l', lambda r: r[0].scheme == 'http' and r[1].scheme == 'http' and r[0].netloc == r[1].netloc),
-    ('http_http_r', lambda r: r[0].scheme == 'http' and r[1].scheme == 'http' and r[0].netloc != r[1].netloc),
-    ('http_https_l', lambda r: r[0].scheme == 'http' and r[1].scheme == 'https' and r[0].netloc == r[1].netloc),
-    ('http_https_r', lambda r: r[0].scheme == 'http' and r[1].scheme == 'https' and r[0].netloc != r[1].netloc),
-    ('https_http_l', lambda r: r[0].scheme == 'https' and r[1].scheme == 'http' and r[0].netloc == r[1].netloc),
-    ('https_http_r', lambda r: r[0].scheme == 'https' and r[1].scheme == 'http' and r[0].netloc != r[1].netloc),
-    ('https_https_l', lambda r: r[0].scheme == 'https' and r[1].scheme == 'https' and r[0].netloc == r[1].netloc),
-    ('https_https_r', lambda r: r[0].scheme == 'https' and r[1].scheme == 'https' and r[0].netloc != r[1].netloc),
-]
+from operator import add
 
 select = sqlContext.sql("""
 SELECT 
@@ -195,26 +177,21 @@ SELECT
     sri.target as sri
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.integrity IS NOT NULL
-""").rdd.map(lambda r: (urlparse(r.url), urlparse(urljoin(r.url, r.sri))))
+""")
 
-number = select.count()
+def parse(r):
+    h = urlparse(r.url)
+    t = urlparse(urljoin(r.url, r.sri))
+    return ((h.scheme, t.scheme, 'l' if h.netloc == t.netloc else 'r'), 1)
 
-with open("07_elements_per_protocol.csv", "w") as file:
-    file.write("protocol,elements\n")
-    for l in lambdas:
-        result = select.filter(l[1]).count()
-        file.write("{}, {}, {}\n".format(l[0], result, round(result / number * 100, 2)))
 
-select.filter(lambda r: r[0].scheme == 'https' and r[1].scheme == 'http').map(lambda r : (r[0].netloc, r[1].netloc)).coalesce(1).toDF().write.format("csv") \
-        .option("header", "true") \
-        .save("07_dangerous_https_to_http_downgrade.csv")
-
+select.rdd.map(parse).reduceByKey(add).write.mode('overwrite').parquet("08_elements_per_protocol")
 
 # ---------------------------
 
 # Q8: Top-k urls and domains among sri
 
-csv("08_topk_sri_url.csv", """
+saveResults("08_topk_sri_url", """
 SELECT 
     substr(sri.target, instr(sri.target, '//') + 2) AS library, 
     count(*) AS number,
@@ -233,7 +210,7 @@ GROUP BY library
 ORDER BY number DESC
 """)
 
-csv("08_topk_sri_domain.csv", """
+saveResults("08_topk_sri_domain", """
 SELECT 
     substring_index(substring_index(sri.target, '/', 3), '/', -1) AS domain, 
     count(*) AS number,
@@ -256,7 +233,7 @@ ORDER BY number DESC
 
 # Q9: What is the distribution of the values for the crossorigin attribute?
 
-csv("09_crossorigin_values.csv", """
+saveResults("09_crossorigin_values", """
 SELECT
     trim(sri.crossorigin) AS value,
     count(*) AS number,
@@ -271,7 +248,7 @@ GROUP BY trim(sri.crossorigin)
 ORDER BY number DESC
 """)
 
-csv("09_crossorigin_use_credentials.csv", """
+saveResults("09_crossorigin_use_credentials", """
 SELECT
     cc.url,
     sri.target,
@@ -285,7 +262,7 @@ WHERE sri.crossorigin = 'use-credentials'
 
 # Q10: Among the pages that contains SRI, how many of them specify the require-sri-for CSP?
 
-csv("10_require_sri_for.csv", """
+saveResults("10_require_sri_for", """
 SELECT  
     count(DISTINCT cc.url) as number,
     round(100 * count(DISTINCT cc.url) / (
@@ -297,18 +274,6 @@ FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.integrity IS NOT NULL AND csp LIKE "%require-sri-for%"
 """)
 
-# Q11: Top-k urls and domains among sri
-
-csv("11_topk_no_sri_url_d.csv", """
-SELECT 
-    substr(sri.target, instr(sri.target, '//') + 2) AS library, 
-    count(*) AS number
-FROM cc LATERAL VIEW explode(subresources) T AS sri
-WHERE sri.target IS NOT NULL 
-  AND sri.integrity IS NULL
-GROUP BY library
-ORDER BY number DESC
-""")
 
 
 
