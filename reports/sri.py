@@ -1,4 +1,7 @@
 from pyspark.shell import sqlContext
+from urllib.parse import urljoin
+from urllib.parse import urlparse
+from operator import add
 
 # ---------------------------
 # --------- DATA ------------
@@ -6,7 +9,6 @@ from pyspark.shell import sqlContext
 
 # Load the parquet files
 sqlContext.read.parquet("../output/*.parquet").registerTempTable("cc")
-
 
 # ---------------------------
 # ------ UTILITIES ----------
@@ -72,6 +74,7 @@ WHERE size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NUL
 # ---------------------------
 
 # Q3: What is the number of pages per number of number SRI?
+
 saveResults("03_page_per_sri", """
 SELECT 
     size(filter(subresources, s -> s.integrity IS NOT NULL)) AS sri, 
@@ -135,6 +138,7 @@ ORDER BY number DESC
 # ---------------------------
 
 # Q5: Are there invalid integrity attributes in the dataset?
+
 saveResults("05_invalid_integrity_attributes", """
 SELECT
     cc.url,
@@ -167,10 +171,6 @@ ORDER BY protocol DESC
 
 # Q7: What is the number of elements per target protocol?
 
-from urllib.parse import urljoin
-from urllib.parse import urlparse
-from operator import add
-
 select = sqlContext.sql("""
 SELECT 
     url as url,
@@ -184,8 +184,7 @@ def parse(r):
     t = urlparse(urljoin(r.url, r.sri))
     return ((h.scheme, t.scheme, 'l' if h.netloc == t.netloc else 'r'), 1)
 
-
-select.rdd.map(parse).reduceByKey(add).write.mode('overwrite').parquet("08_elements_per_protocol")
+select.rdd.map(parse).reduceByKey(add).toDF().repartition(1).write.mode('overwrite').parquet("07_elements_per_protocol")
 
 # ---------------------------
 
