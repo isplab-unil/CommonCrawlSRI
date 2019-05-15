@@ -8,3 +8,4 @@ sudo pip-3.6 install \
   beautifulsoup4==4.7.1 \
   lxml==4.3.3 \
   html5lib==1.0.1
+
