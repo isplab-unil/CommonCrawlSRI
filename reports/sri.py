@@ -2,12 +2,15 @@ from pyspark.shell import sqlContext
 from urllib.parse import urljoin
 from urllib.parse import urlparse
 from operator import add
+import sys
+
+sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 
 # ---------------------------
 # --------- DATA ------------
 # ---------------------------
 
-# Load the parquet files
+# Load the parquet files and register tables
 sqlContext.read.parquet("../output/*.parquet").registerTempTable("cc")
 
 # ---------------------------
@@ -17,12 +20,19 @@ sqlContext.read.parquet("../output/*.parquet").registerTempTable("cc")
 def saveResults(name, sql):
     sqlContext.sql(sql).repartition(1).write.mode('overwrite').parquet(name)
 
+def loadResult(name):
+    return sqlContext.read.parquet(name)
+
+def sql(sql):
+    sqlContext.sql(sql).show(n=20, truncate=False)
+
 
 # ---------------------------
 # ----- VERIFICATIONS -------
 # ---------------------------
 
-saveResults("00_count.csv", "SELECT count(*) as count FROM cc")
+saveResults("00_count.csv", "SELECT count(warc, url) as count FROM cc")
+saveResults("00_count_distinct.csv", "SELECT count(DISTINCT warc, url) as count FROM cc")
 
 # ---------------------------
 # -------- QUERIES ----------
@@ -124,16 +134,43 @@ ORDER BY sri ASC
 
 # Q4: What is the number of SRI per hash algorithm?
 
-saveResults("04_sri_per_alg", """
+saveResults("04_sri_per_hash", """
 SELECT 
-    substring_index(trim(hash), '-', 1) as alg, 
-    count(*) as number
-FROM cc LATERAL VIEW explode(subresources) T AS sri LATERAL VIEW explode(split(sri.integrity, ' ')) AS hash
-WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
-  AND sri.integrity IS NOT NULL
-GROUP BY alg
-ORDER BY number DESC
+    algorithms,
+    count(*) AS number
+FROM (
+    SELECT 
+        url, 
+        target, 
+        index,
+        concat_ws("+", sort_array(collect_list(substring(hash, 0, 6)))) as algorithms
+    FROM (
+        SELECT DISTINCT
+            cc.warc,
+            cc.url, 
+            sri.target,
+            index,
+            encode(hash, 'utf-8') as hash
+        FROM cc LATERAL VIEW posexplode(subresources) exploded AS index, sri LATERAL VIEW explode(split(trim(sri.integrity), ' ')) AS hash
+        WHERE sri.integrity IS NOT NULL
+    )
+    GROUP BY warc, url, target, index
+)
+GROUP BY algorithms
+ORDER BY number DESC 
 """)
+
+saveResults("04_sri_with_md5", """
+SELECT DISTINCT
+    cc.url, 
+    sri.target,
+    index,
+    encode(hash, 'utf-8') as hash
+FROM cc LATERAL VIEW posexplode(subresources) exploded AS index, sri LATERAL VIEW explode(split(trim(sri.integrity), ' ')) AS hash
+WHERE sri.integrity IS NOT NULL
+  AND hash LIKE "md5%"
+""")
+
 
 # ---------------------------
 
@@ -149,8 +186,11 @@ FROM cc LATERAL VIEW explode(subresources) T AS sri LATERAL VIEW explode(split(s
 WHERE hash IS NOT NULL
   AND trim(hash) != ""
   AND length(trim(hash)) != 95 -- sha512
+  AND length(trim(hash)) != 94 -- sha512
   AND length(trim(hash)) != 71 -- sha384
+  AND length(trim(hash)) != 70 -- sha384
   AND length(trim(hash)) != 51 -- sha256
+  AND length(trim(hash)) != 50 -- sha256
 """)
 
 # ---------------------------
@@ -158,13 +198,29 @@ WHERE hash IS NOT NULL
 # Q6: What is the distribution of SRI per protocol?
 
 saveResults("06_sri_per_protocol", """
-SELECT if(sri.target LIKE 'https%', 'https', if(sri.target LIKE 'http%', 'http', if(url LIKE 'https%', 'https', 'http'))) AS protocol, count(*) as sri FROM (
+SELECT 
+    if(sri.target LIKE 'https://%', 'https://', if(sri.target LIKE 'http://%', 'http://', if(sri.target LIKE '//%', '//', if(sri.target LIKE '/%', '/', '.')))) AS protocol, 
+    count(*) as sri 
+FROM (
     SELECT url, filter(subresources, s -> s.integrity IS NOT NULL) AS subresources 
     FROM cc 
     WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
 ) LATERAL VIEW explode(subresources) T AS sri
 GROUP BY protocol
-ORDER BY protocol DESC
+ORDER BY sri DESC
+""")
+
+saveResults("06_sri_per_protocol_from_host", """
+SELECT 
+    if(sri.target LIKE 'https://%', 'https', if(sri.target LIKE 'http://%', 'http', if(url LIKE 'https://%', 'https', 'http'))) AS protocol, 
+    count(*) as sri 
+FROM (
+    SELECT url, filter(subresources, s -> s.integrity IS NOT NULL) AS subresources 
+    FROM cc 
+    WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
+) LATERAL VIEW explode(subresources) T AS sri
+GROUP BY protocol
+ORDER BY sri DESC
 """)
 
 # ---------------------------
@@ -173,15 +229,15 @@ ORDER BY protocol DESC
 
 select = sqlContext.sql("""
 SELECT 
-    url as url,
-    sri.target as sri
+    url as host,
+    sri.target as target
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.integrity IS NOT NULL
 """)
 
 def parse(r):
-    h = urlparse(r.url)
-    t = urlparse(urljoin(r.url, r.sri))
+    h = urlparse(r.host)
+    t = urlparse(urljoin(r.host, r.target))
     return ((h.scheme, t.scheme, 'l' if h.netloc == t.netloc else 'r'), 1)
 
 select.rdd.map(parse).reduceByKey(add).toDF().repartition(1).write.mode('overwrite').parquet("07_elements_per_protocol")
@@ -195,15 +251,13 @@ SELECT
     substr(sri.target, instr(sri.target, '//') + 2) AS library, 
     count(*) AS number,
     round(100 * count(*) / (
-        SELECT count(*) 
+        SELECT count(*)
         FROM cc LATERAL VIEW explode(subresources) T AS sri
-        WHERE sri.target IS NOT NULL 
-        AND instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0
-        AND sri.integrity IS NOT NULL
-    ), 2) AS percentage 
+        WHERE instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0 -- is a domain
+            AND sri.integrity IS NOT NULL
+    ), 2) AS percentage
 FROM cc LATERAL VIEW explode(subresources) T AS sri
-WHERE sri.target IS NOT NULL 
-  AND instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0
+WHERE instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0 -- is a domain
   AND sri.integrity IS NOT NULL
 GROUP BY library
 ORDER BY number DESC
@@ -211,20 +265,35 @@ ORDER BY number DESC
 
 saveResults("08_topk_sri_domain", """
 SELECT 
-    substring_index(substring_index(sri.target, '/', 3), '/', -1) AS domain, 
+    substring_index(substring_index(sri.target, '/', 3), '//', -1) AS domain, 
     count(*) AS number,
     round(100 * count(*) / (
-        SELECT count(*) 
+        SELECT count(*)
         FROM cc LATERAL VIEW explode(subresources) T AS sri
-        WHERE sri.target IS NOT NULL 
-        AND instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0
+        WHERE instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0 -- is a domain
         AND sri.integrity IS NOT NULL
-    ), 2) AS percentage 
+    ), 2) AS percentage
 FROM cc LATERAL VIEW explode(subresources) T AS sri
-WHERE sri.target IS NOT NULL 
-  AND instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0
+WHERE instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0 -- is a domain
   AND sri.integrity IS NOT NULL
 GROUP BY domain
+ORDER BY number DESC
+""")
+
+saveResults("08_topk_sri_file", """
+SELECT 
+    substring_index(sri.target, '/', -1) AS file, 
+    count(*) AS number,
+    round(100 * count(*) / (
+        SELECT count(*)
+        FROM cc LATERAL VIEW explode(subresources) T AS sri
+        WHERE instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0 -- is a domain
+        AND sri.integrity IS NOT NULL
+    ), 2) AS percentage
+FROM cc LATERAL VIEW explode(subresources) T AS sri
+WHERE instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0 -- is a domain
+  AND sri.integrity IS NOT NULL
+GROUP BY file
 ORDER BY number DESC
 """)
 
@@ -272,7 +341,5 @@ SELECT
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.integrity IS NOT NULL AND csp LIKE "%require-sri-for%"
 """)
-
-
 
 
