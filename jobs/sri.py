@@ -104,10 +104,8 @@ class Sri(CommonCrawl):
                     # detect encoding and parse content
                     encoding = EncodingDetector.find_declared_encoding(content, is_html=True)
                     soup = BeautifulSoup(content, "lxml", from_encoding=encoding)
-
-                    if has_subresource_filter:
-                        subresources = self.extract_subresources(soup)
-                        has_subresource = len(subresources) > 0
+                    subresources = self.extract_subresources(soup)
+                    has_subresource = len(subresources) > 0
 
                 except Exception as e:
                     error = str(e)
