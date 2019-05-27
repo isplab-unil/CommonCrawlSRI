@@ -38,7 +38,7 @@ saveResults("00_count_distinct.csv", "SELECT count(DISTINCT warc, url) as count 
 # -------- QUERIES ----------
 # ---------------------------
 
-# Q1: What is the number of pages by protocol?
+# 01: What is the number of pages by protocol?
 
 saveResults("01_pages_per_protocol", """
 SELECT 
@@ -52,7 +52,7 @@ GROUP BY protocol
 
 # ---------------------------
 
-# Q2: What is the number of pages that include at least one SRI?
+# 02: What is the number of pages that include at least one SRI?
 
 saveResults("02_pages_with_sri", """
 SELECT 
@@ -83,7 +83,7 @@ WHERE size(filter(subresources, s -> s.name == 'link' AND s.integrity IS NOT NUL
 
 # ---------------------------
 
-# Q3: What is the number of pages per number of number SRI?
+# 03: What is the number of pages per number of number SRI?
 
 saveResults("03_page_per_sri", """
 SELECT 
@@ -132,7 +132,7 @@ ORDER BY sri ASC
 
 # ---------------------------
 
-# Q4: What is the number of SRI per hash algorithm?
+# 04: What is the number of SRI per hash algorithm?
 
 saveResults("04_sri_per_hash", """
 SELECT 
@@ -174,7 +174,7 @@ WHERE sri.integrity IS NOT NULL
 
 # ---------------------------
 
-# Q5: Are there invalid integrity attributes in the dataset?
+# 05: Are there invalid integrity attributes in the dataset?
 
 saveResults("05_invalid_integrity_attributes", """
 SELECT
@@ -195,7 +195,7 @@ WHERE hash IS NOT NULL
 
 # ---------------------------
 
-# Q6: What is the distribution of SRI per protocol?
+# 06: What is the distribution of SRI per protocol?
 
 saveResults("06_sri_per_protocol", """
 SELECT 
@@ -225,7 +225,7 @@ ORDER BY sri DESC
 
 # ---------------------------
 
-# Q7: What is the number of elements per target protocol?
+# 07: What is the number of elements per target protocol?
 
 select = sqlContext.sql("""
 SELECT 
@@ -244,7 +244,7 @@ select.rdd.map(parse).reduceByKey(add).toDF().repartition(1).write.mode('overwri
 
 # ---------------------------
 
-# Q8: Top-k urls and domains among sri
+# 08: Top-k urls and domains among sri
 
 saveResults("08_topk_sri_url", """
 SELECT 
@@ -299,7 +299,7 @@ ORDER BY number DESC
 
 # ---------------------------
 
-# Q9: What is the distribution of the values for the crossorigin attribute?
+# 09: What is the distribution of the values for the crossorigin attribute?
 
 saveResults("09_crossorigin_values", """
 SELECT
@@ -328,7 +328,7 @@ WHERE sri.crossorigin = 'use-credentials'
 
 # ---------------------------
 
-# Q10: Among the pages that contains SRI, how many of them specify the require-sri-for CSP?
+# 010: Among the pages that contains SRI, how many of them specify the require-sri-for CSP?
 
 saveResults("10_require_sri_for", """
 SELECT  
