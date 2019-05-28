@@ -13,6 +13,7 @@ sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 # Load the parquet files and register tables
 sqlContext.read.parquet("../output/*.parquet").registerTempTable("cc")
 
+
 # ---------------------------
 # ------ UTILITIES ----------
 # ---------------------------
@@ -20,8 +21,10 @@ sqlContext.read.parquet("../output/*.parquet").registerTempTable("cc")
 def saveResults(name, sql):
     sqlContext.sql(sql).repartition(1).write.mode('overwrite').parquet(name)
 
+
 def loadResult(name):
     return sqlContext.read.parquet(name)
+
 
 def sql(sql):
     sqlContext.sql(sql).show(n=20, truncate=False)
@@ -171,7 +174,6 @@ WHERE sri.integrity IS NOT NULL
   AND hash LIKE "md5%"
 """)
 
-
 # ---------------------------
 
 # 05: Are there invalid integrity attributes in the dataset?
@@ -223,6 +225,20 @@ GROUP BY protocol
 ORDER BY sri DESC
 """)
 
+saveResults("06_sri_per_host_and_target_protocol", """
+SELECT 
+    if(url LIKE 'https://%', 'https://', if(url LIKE 'http://%', 'http://', 'other')) AS host, 
+    if(sri.target LIKE 'https://%', 'https://', if(sri.target LIKE 'http://%', 'http://', if(sri.target LIKE '//%', '//', if(sri.target LIKE '/%', '/', '.')))) AS target, 
+    count(*) as sri 
+FROM (
+    SELECT url, filter(subresources, s -> s.integrity IS NOT NULL) AS subresources 
+    FROM cc 
+    WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
+) LATERAL VIEW explode(subresources) T AS sri
+GROUP BY host, target
+ORDER BY sri DESC
+""")
+
 # ---------------------------
 
 # 07: What is the number of elements per target protocol?
@@ -235,10 +251,12 @@ FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.integrity IS NOT NULL
 """)
 
+
 def parse(r):
     h = urlparse(r.host)
     t = urlparse(urljoin(r.host, r.target))
     return ((h.scheme, t.scheme, 'l' if h.netloc == t.netloc else 'r'), 1)
+
 
 select.rdd.map(parse).reduceByKey(add).toDF().repartition(1).write.mode('overwrite').parquet("07_elements_per_protocol")
 
@@ -341,5 +359,3 @@ SELECT
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.integrity IS NOT NULL AND csp LIKE "%require-sri-for%"
 """)
-
-
