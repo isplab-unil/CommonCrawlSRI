@@ -133,6 +133,32 @@ GROUP BY sri
 ORDER BY sri ASC
 """)
 
+saveResults("03_page_per_sri_evolution_all", """
+SELECT 
+    count(size(subresources)) AS all_count,
+    max(size(subresources)) AS all_max,
+    min(size(subresources)) AS all_min,
+    mean(size(subresources)) AS all_mean, 
+    stddev(size(subresources)) AS all_stddev,
+    count(size(filter(subresources, s -> s.integrity IS NOT NULL))) AS sri_count,
+    max(size(filter(subresources, s -> s.integrity IS NOT NULL))) AS sri_max,
+    min(size(filter(subresources, s -> s.integrity IS NOT NULL))) AS sri_min,
+    mean(size(filter(subresources, s -> s.integrity IS NOT NULL))) AS sri_mean, 
+    stddev(size(filter(subresources, s -> s.integrity IS NOT NULL))) AS sri_stddev,
+    count(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'link'))) AS link_count,
+    max(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'link'))) AS link_max,
+    min(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'link'))) AS link_min,
+    mean(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'link'))) AS link_mean, 
+    stddev(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'link'))) AS link_stddev,
+    count(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'script'))) AS script_count,
+    max(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'script'))) AS script_max,
+    min(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'script'))) AS script_min,
+    mean(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'script'))) AS script_mean, 
+    stddev(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'script'))) AS script_stddev
+FROM cc 
+WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0 
+""")
+
 # ---------------------------
 
 # 04: What is the number of SRI per hash algorithm?
