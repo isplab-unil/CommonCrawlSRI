@@ -12,6 +12,9 @@ sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 
 # Load the parquet files and register tables
 sqlContext.read.parquet("../output/*.parquet").registerTempTable("cc")
+sqlContext.read.csv('../../../top-1m-cisco.csv').registerTempTable('top1m')
+sqlContext.read.csv('../../../top-1k-cisco.csv').registerTempTable('top1k')
+
 
 
 # ---------------------------
@@ -50,6 +53,28 @@ SELECT
     (SELECT count(*) FROM cc) AS total,
     round(100 * count(*) / (SELECT count(*) FROM cc), 2) AS percentage 
 FROM cc 
+GROUP BY protocol
+""")
+
+saveResults("01_pages_per_protocol_top1m", """
+SELECT 
+    if(url LIKE 'https%', 'https', if(url LIKE 'http%', 'http', 'other')) AS protocol, 
+    count(*) AS number,
+    (SELECT count(*) FROM cc) AS total,
+    round(100 * count(*) / (SELECT count(*) FROM cc), 2) AS percentage 
+FROM cc, top1m
+WHERE substring_index(substring_index(url, '/', 3), '/', -1) = _c1
+GROUP BY protocol
+""")
+
+saveResults("01_pages_per_protocol_top1k", """
+SELECT 
+    if(url LIKE 'https%', 'https', if(url LIKE 'http%', 'http', 'other')) AS protocol, 
+    count(*) AS number,
+    (SELECT count(*) FROM cc) AS total,
+    round(100 * count(*) / (SELECT count(*) FROM cc), 2) AS percentage 
+FROM cc, top1k
+WHERE substring_index(substring_index(url, '/', 3), '/', -1) = _c1
 GROUP BY protocol
 """)
 
