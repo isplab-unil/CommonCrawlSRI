@@ -37,8 +37,9 @@ def sql(sql):
 # ----- VERIFICATIONS -------
 # ---------------------------
 
-saveResults("00_count.csv", "SELECT count(warc, url) as count FROM cc")
-saveResults("00_count_distinct.csv", "SELECT count(DISTINCT warc, url) as count FROM cc")
+saveResults("00_count", "SELECT count(warc, url) as count FROM cc")
+saveResults("00_count_distinct", "SELECT count(DISTINCT warc, url) as count FROM cc")
+saveResults("00_count_domains", "SELECT count(DISTINCT substring_index(substring_index(url, '/', 3), '//', -1)) as count FROM cc")
 
 # ---------------------------
 # -------- QUERIES ----------
@@ -60,8 +61,8 @@ saveResults("01_pages_per_protocol_top1m", """
 SELECT 
     if(url LIKE 'https%', 'https', if(url LIKE 'http%', 'http', 'other')) AS protocol, 
     count(*) AS number,
-    (SELECT count(*) FROM cc) AS total,
-    round(100 * count(*) / (SELECT count(*) FROM cc), 2) AS percentage 
+    (SELECT count(*) FROM cc, top1m WHERE substring_index(substring_index(url, '/', 3), '/', -1) = _c1) AS total,
+    round(100 * count(*) / (SELECT count(*) FROM cc, top1m WHERE substring_index(substring_index(url, '/', 3), '/', -1) = _c1), 2) AS percentage 
 FROM cc, top1m
 WHERE substring_index(substring_index(url, '/', 3), '/', -1) = _c1
 GROUP BY protocol
@@ -71,8 +72,8 @@ saveResults("01_pages_per_protocol_top1k", """
 SELECT 
     if(url LIKE 'https%', 'https', if(url LIKE 'http%', 'http', 'other')) AS protocol, 
     count(*) AS number,
-    (SELECT count(*) FROM cc) AS total,
-    round(100 * count(*) / (SELECT count(*) FROM cc), 2) AS percentage 
+    (SELECT count(*) FROM cc, top1k WHERE substring_index(substring_index(url, '/', 3), '/', -1) = _c1) AS total,
+    round(100 * count(*) / (SELECT count(*) FROM cc, top1k WHERE substring_index(substring_index(url, '/', 3), '/', -1) = _c1), 2) AS percentage 
 FROM cc, top1k
 WHERE substring_index(substring_index(url, '/', 3), '/', -1) = _c1
 GROUP BY protocol
@@ -89,6 +90,26 @@ SELECT
     round(100 * count(*) / (SELECT count(*) FROM cc), 2) AS percentage 
 FROM cc 
 WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
+""")
+
+saveResults("02_pages_with_sri_top1m", """
+SELECT 
+    count(*) AS number,
+    (SELECT count(*) FROM cc, top1m WHERE substring_index(substring_index(url, '/', 3), '/', -1) = _c1) AS total,
+    round(100 * count(*) / (SELECT count(*) FROM cc, top1m WHERE substring_index(substring_index(url, '/', 3), '/', -1) = _c1), 2) AS percentage 
+FROM cc, top1m
+WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
+AND substring_index(substring_index(url, '/', 3), '/', -1) = _c1
+""")
+
+saveResults("02_pages_with_sri_top1k", """
+SELECT 
+    count(*) AS number,
+    (SELECT count(*) FROM cc, top1k WHERE substring_index(substring_index(url, '/', 3), '/', -1) = _c1) AS total,
+    round(100 * count(*) / (SELECT count(*) FROM cc, top1k WHERE substring_index(substring_index(url, '/', 3), '/', -1) = _c1), 2) AS percentage 
+FROM cc, top1k
+WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
+AND substring_index(substring_index(url, '/', 3), '/', -1) = _c1
 """)
 
 saveResults("02_pages_with_sri_script", """
@@ -160,28 +181,28 @@ ORDER BY sri ASC
 
 saveResults("03_page_per_sri_evolution_all", """
 SELECT 
-    count(size(subresources)) AS all_count,
+    sum(size(subresources)) AS all_count,
     max(size(subresources)) AS all_max,
     min(size(subresources)) AS all_min,
     mean(size(subresources)) AS all_mean, 
     stddev(size(subresources)) AS all_stddev,
-    count(size(filter(subresources, s -> s.integrity IS NOT NULL))) AS sri_count,
-    max(size(filter(subresources, s -> s.integrity IS NOT NULL))) AS sri_max,
-    min(size(filter(subresources, s -> s.integrity IS NOT NULL))) AS sri_min,
-    mean(size(filter(subresources, s -> s.integrity IS NOT NULL))) AS sri_mean, 
-    stddev(size(filter(subresources, s -> s.integrity IS NOT NULL))) AS sri_stddev,
-    count(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'link'))) AS link_count,
-    max(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'link'))) AS link_max,
-    min(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'link'))) AS link_min,
-    mean(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'link'))) AS link_mean, 
-    stddev(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'link'))) AS link_stddev,
-    count(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'script'))) AS script_count,
-    max(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'script'))) AS script_max,
-    min(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'script'))) AS script_min,
-    mean(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'script'))) AS script_mean, 
-    stddev(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.name == 'script'))) AS script_stddev
+    sum(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL))) AS sri_count,
+    max(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL))) AS sri_max,
+    min(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL))) AS sri_min,
+    mean(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL))) AS sri_mean, 
+    stddev(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL))) AS sri_stddev,
+    sum(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL AND s.name == 'link'))) AS link_count,
+    max(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL AND s.name == 'link'))) AS link_max,
+    min(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL AND s.name == 'link'))) AS link_min,
+    mean(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL AND s.name == 'link'))) AS link_mean, 
+    stddev(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL AND s.name == 'link'))) AS link_stddev,
+    sum(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL AND s.name == 'script'))) AS script_count,
+    max(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL AND s.name == 'script'))) AS script_max,
+    min(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL AND s.name == 'script'))) AS script_min,
+    mean(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL AND s.name == 'script'))) AS script_mean, 
+    stddev(size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL AND s.name == 'script'))) AS script_stddev
 FROM cc 
-WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0 
+WHERE size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT NULL)) > 0 
 """)
 
 # ---------------------------
@@ -363,6 +384,15 @@ FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE instr(substring_index(substring_index(sri.target, '/', 3), '/', -1), '.') > 0 -- is a domain
   AND sri.integrity IS NOT NULL
 GROUP BY file
+ORDER BY number DESC
+""")
+
+saveResults("08_topk_url", """
+SELECT 
+    substr(sri.target, instr(sri.target, '//') + 2) AS library, 
+    count(*) AS number
+FROM cc LATERAL VIEW explode(subresources) T AS sri
+GROUP BY library
 ORDER BY number DESC
 """)
 
