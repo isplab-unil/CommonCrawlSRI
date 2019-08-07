@@ -21,7 +21,7 @@
 * Do you build Single Page Applications (SPA) or Multi Page Applications (MPA)
 * Attachment (Freelance or Attached), for how long?
   * If Attached, how big is the company that you are working for?
-* Does security play a role in your work life?
+* Does security play a role in your work life? Likert scale from 1(Agree) to 7(Disagree)
 * How do you find out about new web security features? 
 * How do you find new implementations of new web security features?
 * Do you copy and paste directly? if no, specify what kind of changes that you make
@@ -36,6 +36,8 @@
 * Among these values for the integrity attribute, which one are well formed? (Maybe discuss with Bertil)
 * Can SRI be  used in place of HTTPS? Why?
 * Can HTTPS be used in place of SRI? Why?
+* Should SRI be used with HTTPS? Why?
+* Should SRI be used with HTTP? Why
 * Have you already integrated a third-party library on a website?
   * If yes, how did you do it?
   * What were your security concerns in doing so?
