@@ -1,5 +1,7 @@
 # Survey Plans
 
+## Sumary of the paper
+
 ## Goal
 * Test web developers' understanding of the SRI recommendation
 * Verify if the behaviour correlates with the large scale analysis
@@ -22,10 +24,11 @@
 * Attachment (Freelance or Attached), for how long?
   * If Attached, how big is the company that you are working for?
 * Does security play a role in your work life? Likert scale from 1(Agree) to 7(Disagree)
-* How do you find out about new web security features? 
+* How do you find out about new web security features?
 * How do you find new implementations of new web security features?
 * Do you copy and paste directly? if no, specify what kind of changes that you make
 * I am often providing code snippets to help other web developers. Likert scale from 1(Agree) to 7(Disagree)
+
 
 ## Interview Protocol
 * Have you heard about SRI? If yes, since when: ...
@@ -42,5 +45,14 @@
   * If yes, how did you do it?
   * What were your security concerns in doing so?
   * Would you use SRI with other kind of subresources?
+
+
+* Add questions about the dev stack
+* Add questions about the build tools
+* Add questions about CDNs
+* Do you build so called "micro services"
+* Do your applications span across several subdomains (e.g. www.myapp.com; cdn.myapp.com)
+
+* Would you like to use the integrity attribute with other subresources (img, video, etc.)
 
  
