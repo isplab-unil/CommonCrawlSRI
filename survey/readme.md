@@ -24,6 +24,14 @@ We show that ....
 * Highest level of completed education
 * Recent professional status
 
+## Short Task
+* Provide a simple web page in any language that contains images, scripts or other downloads
+* Ask user to add SRI
+
+## Other Possible Tasks
+* Ask the participant to draw what happens with included scripts when user accesses the web page
+* Ask user to think of attacker models in this respect and draw them
+
 ## Expert Questions
 * Are you a web developer/administrator? If yes since when: ...
 * Do you have an IT security background? If yes, please specify: ...
