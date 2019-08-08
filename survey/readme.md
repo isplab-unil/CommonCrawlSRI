@@ -1,6 +1,13 @@
 # Survey Plans
 
 ## Sumary of the paper
+"If HTTPS Were Secure, I Wouldn't Need 2FA" - End User and Administrator Mental Models of HTTPS
+Krombholz et. al performed a qualitative study of the mental models of HTTPS held by end users and administrators.
+The work disclosed that some administrators have misconceptions about the security benefits of HTTPS.
+The survey showed that they had incomplete knowledge of HTTPS.
+Furthermore, administrators sometimes misunderstand the interplay of HTTPS protocol components.
+We replicate parts of the survey carried out in the work by Krombholz et. al for SRI. 
+We show that ....
 
 ## Goal
 * Test web developers' understanding of the SRI recommendation
@@ -26,9 +33,14 @@
 * Does security play a role in your work life? Likert scale from 1(Agree) to 7(Disagree)
 * How do you find out about new web security features?
 * How do you find new implementations of new web security features?
-* Do you copy and paste directly? if no, specify what kind of changes that you make
+* Do you copy and paste new implementations of web security features directly from online forums? if no, specify what kind of changes that you make
 * I am often providing code snippets to help other web developers. Likert scale from 1(Agree) to 7(Disagree)
-
+* Do you create libraries for other developer's to use?
+* What type of development stack do you use?
+* What type of build tools do you use?
+* Does your company provide Content Delivery Services?
+* Do you build so-called "microservices"?
+* Does your applications span across several subdomains (e.g. www.myapp.com; cdn.myapp.com)
 
 ## Interview Protocol
 * Have you heard about SRI? If yes, since when: ...
@@ -45,14 +57,5 @@
   * If yes, how did you do it?
   * What were your security concerns in doing so?
   * Would you use SRI with other kind of subresources?
-
-
-* Add questions about the dev stack
-* Add questions about the build tools
-* Add questions about CDNs
-* Do you build so called "micro services"
-* Do your applications span across several subdomains (e.g. www.myapp.com; cdn.myapp.com)
-
 * Would you like to use the integrity attribute with other subresources (img, video, etc.)
 
- 
