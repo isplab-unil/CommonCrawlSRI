@@ -27,6 +27,7 @@ We show that ....
 ## Short Task
 * Provide a simple web page in any language that contains images, scripts or other downloads
 * Ask user to add SRI
+**We could find the sites that are regularly visited by the admins as well as the way they use the resources**
 
 ## Other Possible Tasks
 * Ask the participant to draw what happens with included scripts when user accesses the web page
