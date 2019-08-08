@@ -1,12 +1,12 @@
 # Survey Plans
 
 ## Sumary of the paper
-"If HTTPS Were Secure, I Wouldn't Need 2FA" - End User and Administrator Mental Models of HTTPS
+"If HTTPS Were Secure, I Wouldn't Need 2FA" - End User and Administrator Mental Models of HTTPS.
 Krombholz et. al performed a qualitative study of the mental models of HTTPS held by end users and administrators.
 The work disclosed that some administrators have misconceptions about the security benefits of HTTPS.
 The survey showed that they had incomplete knowledge of HTTPS.
 Furthermore, administrators sometimes misunderstand the interplay of HTTPS protocol components.
-We replicate parts of the survey carried out in the work by Krombholz et. al for SRI. 
+We replicate parts of the survey carried out in the work by Krombholz et. al for SRI.
 We show that ....
 
 ## Goal
@@ -32,6 +32,7 @@ We show that ....
 ## Other Possible Tasks
 * Ask the participant to draw what happens with included scripts when user accesses the web page
 * Ask user to think of attacker models in this respect and draw them
+* Ask the user to describe what happen if a snippet (possibly malformed) is included in the webpage
 
 ## Expert Questions
 * Are you a web developer/administrator? If yes since when: ...
@@ -47,7 +48,7 @@ We show that ....
 * Do you create libraries for other developer's to use?
 * What type of development stack do you use?
 * What type of build tools do you use?
-* Does your company provide Content Delivery Services?
+* Does your web application rely on Content Delivery Networks?
 * Do you build so-called "microservices"?
 * Does your applications span across several subdomains (e.g. www.myapp.com; cdn.myapp.com)
 
