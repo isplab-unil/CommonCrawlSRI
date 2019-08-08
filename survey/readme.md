@@ -36,9 +36,9 @@ We show that ....
 ## Expert Questions
 * Are you a web developer/administrator? If yes since when: ...
 * Do you have an IT security background? If yes, please specify: ...
-* Do you build Single Page Applications (SPA) or Multi Page Applications (MPA)
 * Attachment (Freelance or Attached), for how long?
   * If Attached, how big is the company that you are working for?
+* Do you mostly build Single Page Applications (SPA) or Multi Page Applications (MPA)
 * Does security play a role in your work life? Likert scale from 1(Agree) to 7(Disagree)
 * How do you find out about new web security features?
 * How do you find new implementations of new web security features?
@@ -56,12 +56,24 @@ We show that ....
 * Have you used SRI? If yes, since when: ...
 * Have you encountered the integrity attribute in a web page? Yes/No
   * If yes, in which HTML element have you encountered this attribute?
-* What is the purpose of the integrity attribute?
-* Among these values for the integrity attribute, which one are well formed? (Maybe discuss with Bertil)
-* Can SRI be  used in place of HTTPS? Why?
+* Have you copy pasted a snippet that specifies the integrity attribute in a web page? Yes/No
+  * If yes, where did this snippet came from?
+* Have you configured a build tool to automatically generate SRI on your behalf? Yes/No
+  * If yes, which build tool did you use?.
+* Explain the purpose of the integrity attribute in your own words.
+* Among the following values for the integrity attribute, which one can prevent the inclusion of the subresource?
+  * sha256-kI8CAhrL/OzNAQDYCcWodzP+A17kIY9u6iUXn9p32Q4= (Y)
+  * sha256-kI8CAhrL/OzNAQDYCcWodzP+A17kIY9u6iUXn9p32Q4 (Y)
+  * sha512-Dj51I0q8aPQ3ioaz9LMqGYujAYRbDNblAQbodDRXAMxmY6hsHqEl3F6SvhfJj5oPhcqdX1ldsgEvfMNXGUXBIw== (Y)
+  * sha224-UvG/CT9LdYhyYDXBdsDNtDds/qU4GfE5Wsnm7A== (Y)
+  * sha384-EJu2tbbVVHwc4Dx6i9fY+AwcsJV/UMT3/aBGkgeZF+T5ytUrh489gjThoXCxVLct (Y)
+  * sha256-kI8CAhrL\OzNAQDYCcWodzP+A17kIY9u6iUXn9p32Q4= (N)
+  * md5-2Oj8otwPiW/Xy0ywAxuiSQ== (N)
+  * sha256kI8CAhrL/OzNAQDYCcWodzP+A17kIY9u6iUXn9p32Q4= (N)
+* Can SRI be used in place of HTTPS? Why?
 * Can HTTPS be used in place of SRI? Why?
 * Should SRI be used with HTTPS? Why?
-* Should SRI be used with HTTP? Why
+* Should SRI be used with HTTP? Why?
 * Have you already integrated a third-party library on a website?
   * If yes, how did you do it?
   * What were your security concerns in doing so?
