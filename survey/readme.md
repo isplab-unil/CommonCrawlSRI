@@ -83,3 +83,7 @@ We show that ....
   * Would you use SRI with other kind of subresources?
 * Would you like to use the integrity attribute with other subresources (img, video, etc.)
 
+## Questions to discuss with Prof K. Huguenin and Prof M. Cherubini
+* Shall we perform a qualitative or quantitative survey or both?
+* Will studying mental models enhance our study?
+
