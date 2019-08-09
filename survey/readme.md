@@ -3,9 +3,11 @@
 ## Sumary of the paper
 "If HTTPS Were Secure, I Wouldn't Need 2FA" - End User and Administrator Mental Models of HTTPS.
 Krombholz et. al performed a qualitative study of the mental models of HTTPS held by end users and administrators.
-The work disclosed that some administrators have misconceptions about the security benefits of HTTPS.
-The survey showed that they had incomplete knowledge of HTTPS.
+The work disclosed that members of both groups have misconceptions about the security benefits of HTTPS.
+Some end users thought that HTTPS could stop viruses while some administrators thought that HTTPS does not protect against eavesdropping and thought the HTTPS lock symbol was for marketing purposes.
+The survey proved that both groups had incomplete knowledge of HTTPS and its benefits.
 Furthermore, administrators sometimes misunderstand the interplay of HTTPS protocol components.
+Some did not see the importance of server authentication when establishing a secure channel.
 We replicate parts of the survey carried out in the work by Krombholz et. al for SRI.
 We show that ....
 
