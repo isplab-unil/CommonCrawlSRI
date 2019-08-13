@@ -27,10 +27,11 @@
   * If Attached, how big is the company that you are working for?
 * Do you mostly build Single Page Applications (SPA) or Multi Page Applications (MPA)
 * Does security play a role in your work life? Likert scale from 1(Agree) to 7(Disagree)
-* How do you find out about new web security features?
-* How do you find new implementations of new web security features?
-* Do you copy and paste new implementations of web security features directly from online forums?Yes/No if no, specify what kind of changes that you make
 * I am often providing code snippets to help other web developers. Likert scale from 1(Agree) to 7(Disagree)
+* What source of information do you use to find out about new web security features? **euronews, Hacker news e.t.c**
+* How do you find reference implementations of new web security features? **Stackoverflow, Stackexchange e.t.c**
+* Do you copy and paste reference implementations of web security features directly from online forums? Yes/No 
+  * If no, specify what kind of changes that you make
 * Do you create libraries for other developer's to use? Yes/No
 * What type of development stack do you use?
 * What type of build tools do you use?
@@ -57,8 +58,9 @@
   * sha256-kI8CAhrL\OzNAQDYCcWodzP+A17kIY9u6iUXn9p32Q4= (N)
   * md5-2Oj8otwPiW/Xy0ywAxuiSQ== (N)
   * sha256kI8CAhrL/OzNAQDYCcWodzP+A17kIY9u6iUXn9p32Q4= (N)
-* Can SRI be used in place of HTTPS? Why?
-* Can HTTPS be used in place of SRI? Why?
+* SRI and HTTPS perform the same function and can be used interchangeably. Yes/No
+  * If yes, why?
+  * If no, why?
 * Should SRI be used with HTTPS? Why?
 * Should SRI be used with HTTP? Why?
 * Have you already integrated a third-party library on a website?

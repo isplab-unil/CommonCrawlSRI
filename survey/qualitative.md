@@ -2,7 +2,7 @@
 
 ## Goal
 * Test web developers' understanding of the SRI recommendation
-* Gain an insight into web developers' mental models.
+* Gain an insight into web developers' mental models
 
 ## Research Questions
 * What are the mental models that web developers hold with regards to SRI?
@@ -28,8 +28,8 @@
 ## Short Task
 Provide a simple web page in any language that contains images, scripts or other downloads
 * Ask user to add SRI
-* Ask the user to describe what happen if a snippet (possibly malformed) is included in the webpage
 
 ## Possible Inferences
 * We could find the sites that are regularly visited by the admins as well as the way they use the resources
+* How does web developers' mental models affect the adoption of SRI
 
