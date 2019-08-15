@@ -20,3 +20,23 @@
 * Influencing Mental Models of Security:A Research Agenda
 * Why Johnny Can’t Encrypt:A Usability Evaluation of PGP 5.0
 
+## Discussions with Kevin
+* Set up a criteria for the survey - provide at least two options for these
+  * Select Participants
+  * Contact Participants
+  * Design Questionnaire
+  * Host Questionnaire
+* What options do we have? Pros and Cons (Interview)
+* Contacts - Whois emails, Wordpress plugin or template creators
+  * Option 2 - Broadcast to UNIL alumni
+  * Pay on MTurk, Myquest (Ask them how can we reach out)
+* Shorten the questionnaire
+* If they don't know SRI, ask
+  * Ask for external resources, how can it be attacked, how to protect against it
+  * Do you have ext resources on CDN
+  * Do you have an idea what can be done when corrupted
+* Choosing - How many websites? 10k random from cc, make 50-50 from domains that use SRI and those that don;t
+* Email webmaster@website.com
+* Do we want to go anonymous or not? Domain anon or dev anon
+
+
