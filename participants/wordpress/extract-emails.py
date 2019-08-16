@@ -18,6 +18,8 @@ if __name__ == '__main__':
                     with open(str(file), 'r') as lines:
                         for line in lines:
                             email = re.search(r'[\w\.-]+@[\w\.-]+', line)
+                            # This regex below matches emails better
+                            # email = re.search(r'[^\W][\w\-'+]+(\.[\w'+-]+)*@[\D][\w+\-]+([-.]\w+)*\.[\w+\-]{2,}', line)
                             if email:
                                 out.write(email.group(0) + '\n')
                     print('Done!')

@@ -23,6 +23,8 @@ if __name__ == '__main__':
                     lines = urllib.request.urlopen("https://cdn.jsdelivr.net/npm/" + id + "/package.json")
                     for line in lines:
                         email = re.search(r'[\w\.-]+@[\w\.-]+', line.decode('utf-8'))
+                        # This regex below matches emails better
+                        # email = re.search(r'[^\W][\w\-'+]+(\.[\w'+-]+)*@[\D][\w+\-]+([-.]\w+)*\.[\w+\-]{2,}', line)
                         if email:
                             out.write(email.group(0) + '\n')
                     print("Done!")
