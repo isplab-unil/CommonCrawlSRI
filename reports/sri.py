@@ -24,6 +24,9 @@ sqlContext.read.csv('../../../top-1k-cisco.csv').registerTempTable('top1k')
 def saveResults(name, sql):
     sqlContext.sql(sql).repartition(1).write.mode('overwrite').parquet(name)
 
+def saveCsv(name, sql):
+    sqlContext.sql(sql).repartition(1).write.format("csv").option("header", "false").save(name)
+
 
 def loadResult(name):
     return sqlContext.read.parquet(name)
@@ -354,8 +357,8 @@ ORDER BY number DESC
 """)
 
 saveResults("08_topk_sri_domain", """
-SELECT 
-    substring_index(substring_index(sri.target, '/', 3), '//', -1) AS domain, 
+SELECT
+    substring_index(substring_index(sri.target, '/', 3), '//', -1) AS domain,
     count(*) AS number,
     round(100 * count(*) / (
         SELECT count(*)
@@ -427,7 +430,7 @@ WHERE sri.crossorigin = 'use-credentials'
 
 # ---------------------------
 
-# 010: Among the pages that contains SRI, how many of them specify the require-sri-for CSP?
+# 10: Among the pages that contains SRI, how many of them specify the require-sri-for CSP?
 
 saveResults("10_require_sri_for", """
 SELECT  
@@ -435,8 +438,21 @@ SELECT
     round(100 * count(DISTINCT cc.url) / (
         SELECT count(DISTINCT cc.url)
         FROM cc LATERAL VIEW explode(subresources) T AS sri
-        WHERE sri.integrity IS NOT NULL 
-    ), 4) AS percentage  
+        WHERE sri.integrity IS NOT NULL
+    ), 4) AS percentage
 FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.integrity IS NOT NULL AND csp LIKE "%require-sri-for%"
+""")
+
+# ---------------------------
+# 11: Retrieve a list of participants for the survey
+
+saveCsv("11_participants", """
+SELECT
+    substring_index(parse_url(cc.url, 'HOST'), '.', -2) AS domain,
+    concat('webmaster@', substring_index(parse_url(cc.url, 'HOST'), '.', -2)) AS email,
+    max(sri.integrity IS NOT NULL) AS has_sri
+FROM cc LATERAL VIEW OUTER explode(subresources) T AS sri
+GROUP BY domain
+HAVING count(cc.url) > 10
 """)
