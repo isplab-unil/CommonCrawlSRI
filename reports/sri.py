@@ -213,19 +213,19 @@ WHERE size(filter(subresources, s -> s.integrity IS NOT NULL AND s.target IS NOT
 # 04: What is the number of SRI per hash algorithm?
 
 saveResults("04_sri_per_hash", """
-SELECT 
+SELECT
     algorithms,
     count(*) AS number
 FROM (
-    SELECT 
+    SELECT
         url, 
-        target, 
+        target,
         index,
         concat_ws("+", sort_array(collect_list(substring(hash, 0, 6)))) as algorithms
     FROM (
         SELECT DISTINCT
             cc.warc,
-            cc.url, 
+            cc.url,
             sri.target,
             index,
             encode(hash, 'utf-8') as hash
@@ -235,7 +235,7 @@ FROM (
     GROUP BY warc, url, target, index
 )
 GROUP BY algorithms
-ORDER BY number DESC 
+ORDER BY number DESC
 """)
 
 saveResults("04_sri_with_md5", """
@@ -374,7 +374,7 @@ ORDER BY number DESC
 """)
 
 saveResults("08_topk_sri_file", """
-SELECT 
+SELECT
     substring_index(sri.target, '/', -1) AS file, 
     count(*) AS number,
     round(100 * count(*) / (
@@ -456,3 +456,52 @@ FROM cc LATERAL VIEW OUTER explode(subresources) T AS sri
 GROUP BY domain
 HAVING count(cc.url) > 10
 """)
+
+# Checks
+
+sql( """
+SELECT
+    algorithms,
+    count(*) AS number
+FROM (
+    SELECT
+        url,
+        target,
+        index,
+        concat_ws("+", sort_array(collect_list(substring(hash, 0, 6)))) as algorithms
+    FROM (
+        SELECT DISTINCT
+            cc.warc,
+            cc.url,
+            sri.target,
+            index,
+            encode(hash, 'utf-8') as hash
+        FROM cc LATERAL VIEW posexplode(subresources) exploded AS index, sri LATERAL VIEW explode(split(trim(sri.integrity), ' ')) AS hash
+        WHERE sri.integrity IS NOT NULL
+    )
+    GROUP BY warc, url, target, index
+)
+GROUP BY algorithms
+ORDER BY number DESC
+""")
+
+sqlContext.read.parquet("../output/part-0000*.parquet").registerTempTable("cc")
+
+
+sql( """
+SELECT DISTINCT
+    -- cc.warc,
+    -- cc.url,
+    -- sri.target,
+    index,
+    substring(hash, 0, 6)
+FROM cc LATERAL VIEW posexplode(subresources) exploded AS index, sri LATERAL VIEW explode(split(trim(sri.integrity), ' ')) AS hash
+WHERE sri.integrity IS NOT NULL
+LIMIT 20
+""")
+
+
+
+
+
+

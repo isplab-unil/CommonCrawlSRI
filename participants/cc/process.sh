@@ -9,3 +9,6 @@ get_seeded_random()
 }
 
 shuf --random-source=<(get_seeded_random 0) sorted-participants.csv > shuffled-participants.csv
+
+cat shuffled-participants.csv | grep ',true$' | head -n 1000 > shuffled-participants-with-sri-1000.csv
+cat shuffled-participants.csv | grep ',false$' | head -n 1000 > shuffled-participants-without-sri-1000.csv
