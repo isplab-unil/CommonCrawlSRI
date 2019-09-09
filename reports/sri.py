@@ -238,9 +238,35 @@ GROUP BY algorithms
 ORDER BY number DESC
 """)
 
+saveResults("04_sri_per_hash_regexp", """
+SELECT
+    algorithms,
+    count(*) AS number
+FROM (
+    SELECT
+        url,
+        target,
+        index,
+        concat_ws("+", sort_array(collect_list(substring(hash, 0, 6)))) as algorithms
+    FROM (
+        SELECT DISTINCT
+            cc.warc,
+            cc.url,
+            sri.target,
+            index,
+            encode(hash, 'utf-8') as hash
+        FROM cc LATERAL VIEW posexplode(subresources) exploded AS index, sri LATERAL VIEW explode(split(trim(regexp_replace(sri.integrity, '\\\s+', ' ')), ' ')) AS hash
+        WHERE sri.integrity IS NOT NULL
+    )
+    GROUP BY warc, url, target, index
+)
+GROUP BY algorithms
+ORDER BY number DESC
+""")
+
 saveResults("04_sri_with_md5", """
 SELECT DISTINCT
-    cc.url, 
+    cc.url,
     sri.target,
     index,
     encode(hash, 'utf-8') as hash
@@ -485,23 +511,67 @@ GROUP BY algorithms
 ORDER BY number DESC
 """)
 
-sqlContext.read.parquet("../output/part-0000*.parquet").registerTempTable("cc")
+####################################
 
 
-sql( """
-SELECT DISTINCT
-    -- cc.warc,
-    -- cc.url,
-    -- sri.target,
-    index,
-    substring(hash, 0, 6)
-FROM cc LATERAL VIEW posexplode(subresources) exploded AS index, sri LATERAL VIEW explode(split(trim(sri.integrity), ' ')) AS hash
-WHERE sri.integrity IS NOT NULL
-LIMIT 20
+sqlContext.read.parquet("../output/part-000*.parquet").registerTempTable("cc")
+
+
+def sql(sql):
+    sqlContext.sql(sql).show(n=100, truncate=False)
+
+
+sql("""
+SELECT
+    algorithms,
+    url,
+    target
+FROM (
+    SELECT
+        url,
+        target,
+        index,
+        concat_ws("+", sort_array(collect_list(substring(hash, 0, 6)))) as algorithms
+    FROM (
+        SELECT DISTINCT
+            cc.warc,
+            cc.url,
+            sri.target,
+            index,
+            trim(hash) as hash
+        FROM cc LATERAL VIEW posexplode(subresources) exploded AS index, sri LATERAL VIEW explode(split(sri.integrity, ' ')) AS hash
+        WHERE sri.integrity IS NOT NULL
+        WHERE url LIKE 'https://media.mice-platform.com/market-roi/20180214'
+    )
+    GROUP BY warc, url, target, index
+    HAVING algorithms LIKE 'sha384+sha384'
+)
 """)
 
+sql("""
+SELECT
+    cc.warc,
+    cc.url,
+    sri.target,
+    index,
+    trim(hash) as hash
+FROM cc LATERAL VIEW posexplode(subresources) exploded AS index, sri LATERAL VIEW explode(split(sri.integrity, ' ')) AS hash
+WHERE sri.integrity IS NOT NULL
+AND url LIKE 'https://media.mice-platform.com/market-roi/20180214'
+""")
 
-
-
+sql("""
+SELECT
+    cc.warc,
+    cc.url,
+    sri.target,
+    sri.integrity
+FROM cc LATERAL VIEW explode(cc.subresources) AS sri
+WHERE sri.integrity IS NOT NULL
+AND size(split(sri.integrity, ' ')) > 1
+AND (sri.integrity LIKE '%sha256%sha256%'
+    OR sri.integrity LIKE '%sha384%sha384%'
+    OR sri.integrity LIKE '%sha512%sha512%')
+""")
 
 
