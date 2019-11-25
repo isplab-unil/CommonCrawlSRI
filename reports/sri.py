@@ -33,7 +33,7 @@ def loadResult(name):
 
 
 def sql(sql):
-    sqlContext.sql(sql).show(n=20, truncate=False)
+    sqlContext.sql(sql).show(n=100, truncate=False)
 
 
 # ---------------------------
@@ -575,3 +575,119 @@ AND (sri.integrity LIKE '%sha256%sha256%'
 """)
 
 
+#sélectionne tous les urls qui ont bootstrapcdn (ou stack) comme domaine, et je regarde la distribution des hash (sha256, sha384, sha256+sha384, etc.). Et si on retrouve principalement sha384 c’est que ça vient probablement du.snippet. C’est ça?
+
+
+# Load the parquet files and register tables
+sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
+
+
+sqlContext.read.parquet("../output/*.parquet").registerTempTable("cc")
+
+
+def sql(sql):
+    sqlContext.sql(sql).show(n=20, truncate=False)
+
+
+sql("""
+SELECT
+    count(*) AS number
+FROM (
+    SELECT
+        url,
+        target,
+        index,
+        concat_ws("+", sort_array(collect_list(substring(hash, 0, 6)))) as algorithms
+    FROM (
+        SELECT DISTINCT
+            cc.warc,
+            cc.url,
+            sri.target,
+            index,
+            encode(hash, 'utf-8') as hash
+        FROM cc LATERAL VIEW posexplode(subresources) exploded AS index, sri LATERAL VIEW explode(split(trim(regexp_replace(sri.integrity, '\\\s+', ' ')), ' ')) AS hash
+        WHERE sri.integrity IS NOT NULL
+          AND sri.target LIKE '%//code.jquery.com/%'
+    )
+    GROUP BY warc, url, target, index
+)
+""")
+
+
+sql("""
+SELECT
+    algorithms,
+    count(*) AS number
+FROM (
+    SELECT
+        url,
+        target,
+        index,
+        concat_ws("+", sort_array(collect_list(substring(hash, 0, 6)))) as algorithms
+    FROM (
+        SELECT DISTINCT
+            cc.warc,
+            cc.url,
+            sri.target,
+            index,
+            encode(hash, 'utf-8') as hash
+        FROM cc LATERAL VIEW posexplode(subresources) exploded AS index, sri LATERAL VIEW explode(split(trim(regexp_replace(sri.integrity, '\\\s+', ' ')), ' ')) AS hash
+        WHERE sri.integrity IS NOT NULL
+          AND sri.target LIKE '%//code.jquery.com/%'
+    )
+    GROUP BY warc, url, target, index
+)
+GROUP BY algorithms
+ORDER BY number DESC
+""")
+
+sql("""
+SELECT
+    count(*) AS number
+FROM (
+    SELECT
+        url,
+        target,
+        index,
+        concat_ws("+", sort_array(collect_list(substring(hash, 0, 6)))) as algorithms
+    FROM (
+        SELECT DISTINCT
+            cc.warc,
+            cc.url,
+            sri.target,
+            index,
+            encode(hash, 'utf-8') as hash
+        FROM cc LATERAL VIEW posexplode(subresources) exploded AS index, sri LATERAL VIEW explode(split(trim(regexp_replace(sri.integrity, '\\\s+', ' ')), ' ')) AS hash
+        WHERE sri.integrity IS NOT NULL
+          AND (sri.target LIKE '%//maxcdn.bootstrapcdn.com/%' OR sri.target LIKE '%//stackpath.bootstrapcdn.com/%')
+    )
+    GROUP BY warc, url, target, index
+)
+""")
+
+sql("""
+SELECT
+    algorithms,
+    count(*) AS number
+FROM (
+    SELECT
+        url,
+        target,
+        index,
+        concat_ws("+", sort_array(collect_list(substring(hash, 0, 6)))) as algorithms
+    FROM (
+        SELECT DISTINCT
+            cc.warc,
+            cc.url,
+            sri.target,
+            index,
+            encode(hash, 'utf-8') as hash
+        FROM cc LATERAL VIEW posexplode(subresources) exploded AS index, sri LATERAL VIEW explode(split(trim(regexp_replace(sri.integrity, '\\\s+', ' ')), ' ')) AS hash
+        WHERE sri.integrity IS NOT NULL
+          AND (sri.target LIKE '%//maxcdn.bootstrapcdn.com/%' OR sri.target LIKE '%//stackpath.bootstrapcdn.com/%')
+    )
+    GROUP BY warc, url, target, index
+)
+GROUP BY algorithms
+ORDER BY number DESC
+""")
