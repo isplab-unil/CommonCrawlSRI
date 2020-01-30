@@ -8,6 +8,7 @@ __license__ = "MIT"
 __maintainer__ = "Bertil Chapuis"
 __email__ = "bertil.chapuis@unil.ch"
 
+import random
 import argparse
 import logging
 import os
@@ -161,9 +162,12 @@ class CommonCrawl:
                 self.warc_input_failed.add(1)
                 return
         try:
+            rnd = random.Random()
+            rnd.seed(warc_id)
             for record in ArchiveIterator(stream):
-                for result in self.process_record(warc_id, record):
-                    yield result
+                if rnd.randint(0, 100) % 100 == 0:
+                    for result in self.process_record(warc_id, record):
+                        yield result
                 self.records_processed.add(1)
         except ArchiveLoadFailed as exception:
             self.warc_input_failed.add(1)
