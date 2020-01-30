@@ -1,0 +1,14 @@
+[
+  {
+    "Classification": "spark-env",
+    "Configurations": [
+      {
+        "Classification": "export",
+        "Properties": {
+          "PYSPARK_PYTHON": "python36",
+          "PYSPARK_PYTHON_DRIVER": "python36"
+        }
+      }
+    ]
+  }
+]
