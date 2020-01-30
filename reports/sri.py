@@ -470,6 +470,14 @@ FROM cc LATERAL VIEW explode(subresources) T AS sri
 WHERE sri.integrity IS NOT NULL AND csp LIKE "%require-sri-for%"
 """)
 
+# Save a sample of the pages that contain require-sri-for in their CSP directive
+
+saveCsv("require_sri_for_pages", """
+SELECT DISTINCT cc.url
+FROM cc LATERAL VIEW explode(subresources) T AS sri
+WHERE sri.integrity IS NOT NULL AND csp LIKE "%require-sri-for%"
+""")
+
 # ---------------------------
 # 11: Retrieve a list of participants for the survey
 

@@ -7,5 +7,5 @@ rsync -avz --delete \
   --exclude '*.gz' \
   --exclude 'metastore_db' \
   --exclude 'logs' \
-  commoncrawl@isplab-calcul:~/data .
+  commoncrawl@isplab-calcul:~/data/sri/2019-35/. ./data/sri/2019-35
 

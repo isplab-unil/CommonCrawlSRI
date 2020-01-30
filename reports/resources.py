@@ -71,3 +71,46 @@ FROM (
 )
 """)
 
+#---
+
+
+sql("""
+SELECT 
+ count(*) as webpages
+FROM cc
+""")
+
+
+sql("""
+SELECT 
+ count(DISTINCT parse_url(cc.url, 'HOST')) as webpages
+FROM cc
+""")
+
+#---
+
+sql("""
+SELECT 
+ count(*) as webpages
+FROM cc 
+WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
+""")
+
+sql("""
+SELECT 
+    count(*) AS number,
+    (SELECT count(*) FROM cc) AS total,
+    round(100 * count(*) / (SELECT count(*) FROM cc), 2) AS percentage,
+    count(DISTINCT parse_url(cc.url, 'HOST')) AS domains
+FROM cc 
+WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
+""")
+
+sql("""
+SELECT 
+ count(DISTINCT parse_url(cc.url, 'HOST')) as webpages
+FROM cc
+WHERE size(filter(subresources, s -> s.integrity IS NOT NULL)) > 0
+""")
+
+# CC-all-1% contains 58’646’582 webpages spanning over 12’720’846 unique FQDNs.
