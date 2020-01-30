@@ -1,1 +1,0 @@
-openssl dgst -sha256 -binary script.js | openssl base64 -A
