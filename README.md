@@ -132,4 +132,5 @@ wget https://commoncrawl.s3.amazonaws.com/crawl-data/CC-MAIN-2019-09/wet.paths.g
 	> input/2019-09-wet.txt 
 ```
 
-
+## Acknowledgments
+The work was partially funded with grant #19024 from the [Hasler Foundation](https://haslerstiftung.ch/en/the-hasler-foundation/).
